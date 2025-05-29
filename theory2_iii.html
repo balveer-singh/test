@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: "एंटिटी इंटीग्रिटी (Entity Integrity) में मुख्य रूप से किसका उपयोग किया जाता है?",
+    options: [
+      "a) Primary Key",
+      "b) Foreign Key",
+      "c) Candidate Key",
+      "d) Composite Key"
+    ],
+    answer: "a) Primary Key"
+  },
+  {
+    question: "प्राइमरी की (Primary Key) का क्या नियम होता है?",
+    options: [
+      "a) यह NULL हो सकता है",
+      "b) यह डुप्लिकेट हो सकता है",
+      "c) यह हमेशा यूनिक और NULL से मुक्त होना चाहिए",
+      "d) यह अन्य टेबल से जुड़ा होना चाहिए"
+    ],
+    answer: "c) यह हमेशा यूनिक और NULL से मुक्त होना चाहिए"
+  },
+
+  // Referential Integrity
+  {
+    question: "रेफरेंशियल इंटीग्रिटी (Referential Integrity) मुख्य रूप से किस पर निर्भर करती है?",
+    options: [
+      "a) Primary Key",
+      "b) Foreign Key",
+      "c) Indexes",
+      "d) Stored Procedures"
+    ],
+    answer: "b) Foreign Key"
+  },
+  {
+    question: "यदि किसी टेबल में Foreign Key मौजूद है, तो वह किससे रेफर करती है?",
+    options: [
+      "a) उसी टेबल की Primary Key",
+      "b) किसी अन्य टेबल की Primary Key",
+      "c) किसी अन्य टेबल की Foreign Key",
+      "d) Unique Key"
+    ],
+    answer: "b) किसी अन्य टेबल की Primary Key"
+  },
+  {
+    question: "रेफरेंशियल इंटीग्रिटी सुनिश्चित करती है कि:",
+    options: [
+      "a) हर फॉरेन की (Foreign Key) वैल्यू संबंधित टेबल में मौजूद हो",
+      "b) डेटा को ऑटोमैटिकली अपडेट किया जाए",
+      "c) डेटा हमेशा एन्क्रिप्टेड रहे",
+      "d) डेटा कभी भी डिलीट नहीं किया जा सके"
+    ],
+    answer: "a) हर फॉरेन की (Foreign Key) वैल्यू संबंधित टेबल में मौजूद हो"
+  },
+  {
+    question: "User-Defined Integrity क्या है?",
+    options: [
+      "डेटाबेस में Custom Rules लागू करना",
+      "डेटा को ऑटोमैटिक बैकअप में रखना",
+      "SQL Queries को तेज बनाना",
+      "डेटा ट्रांसमिशन को तेज करना"
+    ],
+    answer: "डेटाबेस में Custom Rules लागू करना"
+  },
+  {
+    question: "User-Defined Integrity किसका उपयोग करता है?",
+    options: [
+      "Default Constraints",
+      "Stored Procedures और Triggers",
+      "Indexing",
+      "Foreign Key"
+    ],
+    answer: "Stored Procedures और Triggers"
+  },
+  {
+    question: "DDL (Data Definition Language) का उपयोग किसके लिए किया जाता है?",
+    options: [
+      "डेटा को जोड़ने और हटाने के लिए",
+      "डेटा को अपडेट करने के लिए",
+      "डेटाबेस स्ट्रक्चर को परिभाषित और संशोधित करने के लिए",
+      "डेटा को फ़िल्टर करने के लिए"
+    ],
+    answer: "डेटाबेस स्ट्रक्चर को परिभाषित और संशोधित करने के लिए"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा DDL कमांड नहीं है?",
+    options: [
+      "CREATE",
+      "DELETE",
+      "DROP",
+      "ALTER"
+    ],
+    answer: "DELETE"
+  },
+  {
+    question: "DROP और TRUNCATE में क्या अंतर है?",
+    options: [
+      "दोनों ही टेबल का डेटा डिलीट करते हैं",
+      "DROP टेबल को पूरी तरह हटा देता है, जबकि TRUNCATE केवल डेटा हटाता है",
+      "TRUNCATE टेबल को डिलीट कर देता है, जबकि DROP केवल डेटा हटाता है",
+      "दोनों एक ही काम करते हैं"
+    ],
+    answer: "DROP टेबल को पूरी तरह हटा देता है, जबकि TRUNCATE केवल डेटा हटाता है"
+  },
+  {
+    question: "DML (Data Manipulation Language) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "डेटाबेस की संरचना को बदलना",
+      "डेटा जोड़ना, अपडेट करना और हटाना",
+      "उपयोगकर्ता की अनुमतियाँ प्रबंधित करना",
+      "डेटा को एन्क्रिप्ट करना"
+    ],
+    answer: "डेटा जोड़ना, अपडेट करना और हटाना"
+  },
+  {
+    question: "DML का कौन-सा कमांड डेटा को अपडेट करने के लिए उपयोग किया जाता है?",
+    options: [
+      "MODIFY",
+      "CHANGE",
+      "UPDATE",
+      "ALTER"
+    ],
+    answer: "UPDATE"
+  },
+  {
+    question: "DELETE और TRUNCATE में क्या अंतर है?",
+    options: [
+      "DELETE सभी रिकॉर्ड हटाता है और उन्हें वापस प्राप्त किया जा सकता है, लेकिन TRUNCATE में यह संभव नहीं",
+      "DELETE केवल कुछ रिकॉर्ड हटाता है, जबकि TRUNCATE पूरी टेबल को हटा देता है",
+      "DELETE और TRUNCATE दोनों ही डेटा को स्थायी रूप से हटा देते हैं",
+      "DELETE कमांड केवल व्यूज़ पर काम करता है"
+    ],
+    answer: "DELETE सभी रिकॉर्ड हटाता है और उन्हें वापस प्राप्त किया जा सकता है, लेकिन TRUNCATE में यह संभव नहीं"
+  },
+  {
+    question: "DCL (Data Control Language) का उपयोग किसके लिए किया जाता है?",
+    options: [
+      "डेटा को जोड़ने और हटाने के लिए",
+      "उपयोगकर्ताओं और उनकी अनुमतियों को नियंत्रित करने के लिए",
+      "डेटा को संशोधित करने के लिए",
+      "डेटाबेस का बैकअप लेने के लिए"
+    ],
+    answer: "उपयोगकर्ताओं और उनकी अनुमतियों को नियंत्रित करने के लिए"
+  },
+  {
+    question: "GRANT और REVOKE का क्या कार्य है?",
+    options: [
+      "GRANT उपयोगकर्ताओं को विशेष अनुमति देता है, और REVOKE उन अनुमतियों को हटाता है",
+      "GRANT डेटा को जोड़ता है, और REVOKE डेटा को हटाता है",
+      "GRANT डेटा अपडेट करता है, और REVOKE डेटा को स्थायी रूप से हटा देता है",
+      "दोनों ही डेटा को फ़िल्टर करने के लिए उपयोग किए जाते हैं"
+    ],
+    answer: "GRANT उपयोगकर्ताओं को विशेष अनुमति देता है, और REVOKE उन अनुमतियों को हटाता है"
+  },
+    {
+    question: "Primary Key का मुख्य कार्य क्या होता है?",
+    options: [
+      "डेटा को एन्क्रिप्ट करना",
+      "डेटा की विशिष्टता (Uniqueness) सुनिश्चित करना",
+      "डेटा को पुनः प्राप्त करना",
+      "डेटा को संक्षिप्त करना"
+    ],
+    answer: "डेटा की विशिष्टता (Uniqueness) सुनिश्चित करना"
+  },
+  {
+    question: "Primary Key में कौन-सी विशेषता होती है?",
+    options: [
+      "NULL वैल्यू हो सकती है",
+      "एक से अधिक NULL वैल्यू हो सकती हैं",
+      "NULL वैल्यू नहीं हो सकती",
+      "केवल संख्यात्मक डेटा स्टोर कर सकती है"
+    ],
+    answer: "NULL वैल्यू नहीं हो सकती"
+  },
+  {
+    question: "एक तालिका (table) में कितनी Primary Key हो सकती हैं?",
+    options: [
+      "1",
+      "2",
+      "3",
+      "कोई सीमा नहीं"
+    ],
+    answer: "1"
+  },
+  {
+    question: "Primary Key को टेबल में जोड़ने के लिए कौन-सा SQL कमांड सही है?",
+    options: [
+      "ALTER TABLE employees ADD PRIMARY KEY (employee_id);",
+      "ALTER TABLE employees ADD FOREIGN KEY (employee_id);",
+      "ALTER TABLE employees ADD UNIQUE KEY (employee_id);",
+      "ALTER TABLE employees MODIFY employee_id PRIMARY;"
+    ],
+    answer: "ALTER TABLE employees ADD PRIMARY KEY (employee_id);"
+  },
+
+  // Foreign Key MCQs
+  {
+    question: "Foreign Key का मुख्य उद्देश्य क्या है?",
+    options: [
+      "टेबल को डिलीट करना",
+      "डेटा को एनक्रिप्ट करना",
+      "टेबल के बीच संबंध स्थापित करना",
+      "डेटा को तेजी से पुनः प्राप्त करना"
+    ],
+    answer: "टेबल के बीच संबंध स्थापित करना"
+  },
+  {
+    question: "Foreign Key किसका संदर्भ (reference) देती है?",
+    options: [
+      "किसी अन्य टेबल की Primary Key का",
+      "किसी अन्य टेबल की Unique Key का",
+      "किसी अन्य टेबल की Index Key का",
+      "किसी अन्य टेबल की Default Value का"
+    ],
+    answer: "किसी अन्य टेबल की Primary Key का"
+  },
+  {
+    question: "Foreign Key को जोड़ने के लिए कौन-सा SQL कमांड सही है?",
+    options: [
+      "ALTER TABLE orders ADD FOREIGN KEY (customer_id) REFERENCES customers(customer_id);",
+      "ALTER TABLE orders ADD PRIMARY KEY (customer_id);",
+      "ALTER TABLE orders MODIFY FOREIGN KEY (customer_id);",
+      "ALTER TABLE orders DROP FOREIGN KEY (customer_id);"
+    ],
+    answer: "ALTER TABLE orders ADD FOREIGN KEY (customer_id) REFERENCES customers(customer_id);"
+  },
+
+  // Difference between Primary Key and Foreign Key MCQs
+  {
+    question: "Primary Key और Foreign Key में मुख्य अंतर क्या है?",
+    options: [
+      "Primary Key टेबल के रिकॉर्ड को यूनिक बनाती है, जबकि Foreign Key टेबल के बीच संबंध स्थापित करती है",
+      "Primary Key NULL वैल्यू स्वीकार करती है, जबकि Foreign Key नहीं",
+      "Primary Key एक से अधिक हो सकती है, जबकि Foreign Key केवल एक हो सकती है",
+      "Primary Key हमेशा एक संख्या (number) होती है, जबकि Foreign Key नहीं"
+    ],
+    answer: "Primary Key टेबल के रिकॉर्ड को यूनिक बनाती है, जबकि Foreign Key टेबल के बीच संबंध स्थापित करती है"
+  },
+  {
+    question: "Primary Key और Foreign Key में कौन-सा कथन सही नहीं है?",
+    options: [
+      "Primary Key NULL वैल्यू नहीं ले सकती",
+      "Foreign Key किसी अन्य टेबल की Primary Key को संदर्भित करती है",
+      "एक टेबल में केवल एक ही Primary Key हो सकती है",
+      "Primary Key और Foreign Key हमेशा समान नाम की होनी चाहिए"
+    ],
+    answer: "Primary Key और Foreign Key हमेशा समान नाम की होनी चाहिए"
+  },
+
+  // ACID Properties MCQs
+  {
+    question: "ACID का पूरा नाम क्या है?",
+    options: [
+      "Atomicity, Consistency, Integrity, Durability",
+      "Atomicity, Consistency, Isolation, Durability",
+      "Accuracy, Consistency, Isolation, Dependency",
+      "Atomicity, Concurrency, Isolation, Durability"
+    ],
+    answer: "Atomicity, Consistency, Isolation, Durability"
+  },
+  {
+    question: "ACID Properties में Atomicity का क्या अर्थ है?",
+    options: [
+      "डेटा को तेज़ी से पुनः प्राप्त करना",
+      "ट्रांजैक्शन या तो पूरी तरह से सफल होगा या पूरी तरह असफल",
+      "एक से अधिक उपयोगकर्ताओं के लिए डेटा सुरक्षित करना",
+      "डेटा को हमेशा स्थायी (permanent) रूप में संग्रहीत करना"
+    ],
+    answer: "ट्रांजैक्शन या तो पूरी तरह से सफल होगा या पूरी तरह असफल"
+  },
+  {
+    question: "ACID Properties में Isolation का क्या कार्य है?",
+    options: [
+      "डेटा को एक से अधिक टेबल में स्टोर करना",
+      "एक ट्रांजैक्शन को अन्य ट्रांजैक्शन्स से स्वतंत्र बनाना",
+      "डेटा को सुरक्षित रूप से एन्क्रिप्ट करना",
+      "डेटा को हमेशा सुसंगत (consistent) बनाए रखना"
+    ],
+    answer: "एक ट्रांजैक्शन को अन्य ट्रांजैक्शन्स से स्वतंत्र बनाना"
+  },
+  {
+    question: "ACID Properties में Durability का क्या अर्थ है?",
+    options: [
+      "डेटा को एक निश्चित समय तक स्टोर करने की क्षमता",
+      "सिस्टम क्रैश होने पर भी ट्रांजैक्शन के प्रभाव को बनाए रखना",
+      "डेटा को नियमित रूप से अपडेट करना",
+      "किसी विशेष डेटा को पुनः प्राप्त करना"
+    ],
+    answer: "सिस्टम क्रैश होने पर भी ट्रांजैक्शन के प्रभाव को बनाए रखना"
+  },
+
+  // Transaction and Its States MCQs
+  {
+    question: "डेटाबेस ट्रांजैक्शन क्या है?",
+    options: [
+      "डेटा को सुरक्षित रूप से हटाने की प्रक्रिया",
+      "डेटा को बैकअप करने की प्रक्रिया",
+      "एक या अधिक डेटाबेस ऑपरेशन्स का एकल यूनिट",
+      "डेटा को एन्क्रिप्ट करने की प्रक्रिया"
+    ],
+    answer: "एक या अधिक डेटाबेस ऑपरेशन्स का एकल यूनिट"
+  },
+  {
+    question: "यदि कोई ट्रांजैक्शन विफल हो जाता है, तो कौन-सा कमांड उसे पूर्व स्थिति में ला सकता है?",
+    options: [
+      "COMMIT",
+      "DELETE",
+      "ROLLBACK",
+      "UPDATE"
+    ],
+    answer: "ROLLBACK"
+  },
+    {
+    question: "Committed State का क्या अर्थ है?",
+    options: [
+      "ट्रांजैक्शन असफल हो गया",
+      "ट्रांजैक्शन स्थायी रूप से स्टोर हो गया",
+      "ट्रांजैक्शन आंशिक रूप से सफल हुआ",
+      "ट्रांजैक्शन अभी भी प्रक्रियाधीन है"
+    ],
+    answer: "ट्रांजैक्शन स्थायी रूप से स्टोर हो गया"
+  },
+  {
+    question: "Active State में ट्रांजैक्शन का क्या होता है?",
+    options: [
+      "ट्रांजैक्शन शुरू हो चुका है और निष्पादित हो रहा है",
+      "ट्रांजैक्शन असफल हो गया",
+      "ट्रांजैक्शन समाप्त हो गया",
+      "ट्रांजैक्शन को स्थायी रूप से संग्रहीत किया गया"
+    ],
+    answer: "ट्रांजैक्शन शुरू हो चुका है और निष्पादित हो रहा है"
+  },
+  {
+    question: "यदि कोई ट्रांजैक्शन आंशिक रूप से सफल होता है और आगे की प्रक्रिया रोक दी जाती है, तो इसे क्या कहा जाता है?",
+    options: [
+      "Active State",
+      "Partially Committed State",
+      "Failed State",
+      "Terminated State"
+    ],
+    answer: "Partially Committed State"
+  },
+  {
+    question: "किस SQL कमांड का उपयोग टेबल में डेटा जोड़ने के लिए किया जाता है?",
+    options: [
+      "UPDATE",
+      "DELETE",
+      "INSERT",
+      "DROP"
+    ],
+    answer: "INSERT"
+  },
+  {
+    question: "किस SQL कमांड का उपयोग टेबल की संरचना (structure) को संशोधित करने के लिए किया जाता है?",
+    options: [
+      "SELECT",
+      "ALTER",
+      "DROP",
+      "TRUNCATE"
+    ],
+    answer: "ALTER"
+  },
+  {
+    question: "कौन सा DML कमांड टेबल से डेटा हटाने के लिए उपयोग किया जाता है?",
+    options: [
+      "TRUNCATE",
+      "DELETE",
+      "DROP",
+      "ALTER"
+    ],
+    answer: "DELETE"
+  },
+  {
+    question: "ACID गुणधर्म में \"A\" का क्या अर्थ है?",
+    options: [
+      "Accuracy",
+      "Atomicity",
+      "Authentication",
+      "Authorization"
+    ],
+    answer: "Atomicity"
+  },
+  {
+    question: "कौन सा ACID गुणधर्म यह सुनिश्चित करता है कि डेटा मान्य स्थिति में बना रहे?",
+    options: [
+      "Atomicity",
+      "Consistency",
+      "Isolation",
+      "Durability"
+    ],
+    answer: "Consistency"
+  },
+  {
+    question: "जब कोई ट्रांजैक्शन विफल हो जाता है और उसके सभी परिवर्तन (changes) पूर्व स्थिति में वापस आ जाते हैं, तो इसे क्या कहा जाता है?",
+    options: [
+      "Commit",
+      "Rollback",
+      "Savepoint",
+      "Locking"
+    ],
+    answer: "Rollback"
+  },
+  {
+    question: "जब कोई ट्रांजैक्शन अपनी सभी प्रक्रियाएं सफलतापूर्वक पूरी कर लेता है, तो यह किस स्थिति (state) में प्रवेश करता है?",
+    options: [
+      "Active",
+      "Failed",
+      "Committed",
+      "Aborted"
+    ],
+    answer: "Committed"
+  },
+  {
+    question: "यदि कोई ट्रांजैक्शन विफल हो जाता है लेकिन इसे फिर से शुरू किया जा सकता है, तो इसे क्या कहा जाता है?",
+    options: [
+      "Terminated",
+      "Aborted",
+      "Rollback",
+      "Pending"
+    ],
+    answer: "Aborted"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा ट्रांजैक्शन स्टेट नहीं है?",
+    options: [
+      "Active",
+      "Partially Committed",
+      "Deleted",
+      "Aborted"
+    ],
+    answer: "Deleted"
+  },
+  {
+    question: "एटॉमिकिटी (Atomicity) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "डेटा को सुरक्षित रखना",
+      "सभी लेनदेन को सफलतापूर्वक पूरा करना या पूरी तरह से असफल करना",
+      "कई लेनदेन को एक साथ निष्पादित करना",
+      "केवल आंशिक लेनदेन की अनुमति देना"
+    ],
+    answer: "सभी लेनदेन को सफलतापूर्वक पूरा करना या पूरी तरह से असफल करना"
+  },
+  {
+    question: "किसी डेटाबेस में संगति (Consistency) बनाए रखने का क्या अर्थ है?",
+    options: [
+      "किसी भी डेटा को स्वीकार करना",
+      "केवल वही डेटा स्टोर करना जो सभी बाधाओं (constraints) को पूरा करता है",
+      "किसी भी प्रकार के डेटा परिवर्तन की अनुमति देना",
+      "आंशिक रूप से बदला हुआ डेटा संग्रहित करना"
+    ],
+    answer: "केवल वही डेटा स्टोर करना जो सभी बाधाओं (constraints) को पूरा करता है"
+  },
+  {
+    question: "आइसोलेशन (Isolation) का क्या कार्य है?",
+    options: [
+      "एक लेनदेन को अन्य समकालीन लेनदेन से अलग रखना",
+      "लेनदेन को कभी पूरा नहीं होने देना",
+      "सभी लेनदेन को एक साथ मर्ज करना",
+      "केवल सिंगल-यूज़र ट्रांजैक्शन की अनुमति देना"
+    ],
+    answer: "एक लेनदेन को अन्य समकालीन लेनदेन से अलग रखना"
+  },
+  {
+    question: "DBMS में Durability का क्या अर्थ है?",
+    options: [
+      "ट्रांजैक्शन पूरा होने के बाद भी डेटा स्थायी रूप से सुरक्षित रहता है",
+      "डेटा को बार-बार बदला जा सकता है",
+      "डेटा को केवल अस्थायी रूप से स्टोर किया जाता है",
+      "सभी लेनदेन को तुरंत हटा दिया जाता है"
+    ],
+    answer: "ट्रांजैक्शन पूरा होने के बाद भी डेटा स्थायी रूप से सुरक्षित रहता है"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा कथन सही है?",
+    options: [
+      "एक टेबल में कई प्राइमरी की हो सकते हैं",
+      "एक टेबल में केवल एक ही प्राइमरी की हो सकती है",
+      "फॉरेन की ही हमेशा प्राइमरी की होती है",
+      "टेबल में कोई की (Key) आवश्यक नहीं होती"
+    ],
+    answer: "एक टेबल में केवल एक ही प्राइमरी की हो सकती है"
+  },
+  {
+    question: "फॉरेन की (Foreign Key) का मुख्य उद्देश्य क्या होता है?",
+    options: [
+      "दो टेबल्स के बीच संबंध स्थापित करना",
+      "केवल यूनिक डेटा को स्टोर करना",
+      "इंडेक्सिंग को नियंत्रित करना",
+      "डेटा को डुप्लिकेट करना"
+    ],
+    answer: "दो टेबल्स के बीच संबंध स्थापित करना"
+  },
+   {
+    question: "किसी तालिका में इंडेक्स (Index) जोड़ने का मुख्य लाभ क्या है?",
+    options: [
+      "डेटा पुनर्प्राप्ति गति को बढ़ाना",
+      "डेटा को मर्ज करना",
+      "डेटा को डिलीट करना",
+      "स्टोरेज बढ़ाना"
+    ],
+    answer: "डेटा पुनर्प्राप्ति गति को बढ़ाना"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा DML (Data Manipulation Language) कमांड है?",
+    options: [
+      "CREATE",
+      "DELETE",
+      "DROP",
+      "ALTER"
+    ],
+    answer: "DELETE"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

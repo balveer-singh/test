@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: `Who is the creator of Python programming language?\n
+    Python programming language का creator कौन है?`,
+    options: ["Dennis Ritchie", "James Gosling", "Guido van Rossum", "Bjarne Stroustrup"],
+    answer: "Guido van Rossum"
+  },
+  {
+    question: `In which year was Python first released?\n
+    Python पहली बार किस साल release हुआ था?`,
+    options: ["1989", "1991", "1995", "2000"],
+    answer: "1991"
+  },
+  {
+    question: `Python is a ______ programming language.\n
+    Python किस प्रकार की programming language है?`,
+    options: ["low-level", "high-level", "machine-level", "none of the above"],
+    answer: "high-level"
+  },
+  {
+    question: `Where did Guido van Rossum begin the work on Python?\n
+    Guido van Rossum ने Python पर काम कहाँ शुरू किया था?`,
+    options: ["MIT", "Google", "Centrum Wiskunde & Informatica (CWI), Netherlands", "Microsoft"],
+    answer: "Centrum Wiskunde & Informatica (CWI), Netherlands"
+  },
+  {
+    question: `Python was influenced by which programming language?\n
+    Python किस programming language से प्रभावित था?`,
+    options: ["Java", "C++", "ABC", "Pascal"],
+    answer: "ABC"
+  },
+  {
+    question: `Python's name was inspired by which TV show?\n
+    Python का नाम किस TV show से प्रेरित है?`,
+    options: ["Mr. Bean", "The IT Crowd", "Monty Python's Flying Circus", "The Office"],
+    answer: "Monty Python's Flying Circus"
+  },
+  {
+    question: `What was one of the main goals of Python's design?\n
+    Python के design का मुख्य उद्देश्य क्या था?`,
+    options: ["Speed", "Code readability", "Compilation time", "Low-level hardware access"],
+    answer: "Code readability"
+  },
+  {
+    question: `Which of the following is NOT a use of Python?\n
+    निम्नलिखित में से Python का कौन सा उपयोग नहीं है?`,
+    options: ["Web development", "GUI applications", "Game development", "Operating System development"],
+    answer: "Operating System development"
+  },
+  {
+    question: `Guido van Rossum previously worked at which of the following companies?\n
+    Guido van Rossum पहले निम्नलिखित में से किस कंपनी में काम करते थे?`,
+    options: ["Facebook", "Amazon", "Google", "Apple"],
+    answer: "Google"
+  },
+  {
+    question: `Why did Guido van Rossum start working on Python?\n
+    Guido van Rossum ने Python पर काम क्यों शुरू किया?`,
+    options: ["For a research paper", "As a job requirement", "As a Christmas hobby project", "For a university thesis"],
+    answer: "As a Christmas hobby project"
+  },
+    {
+    question: `Which of the following is a feature of Python?\n
+    निम्नलिखित में से Python की कौन सी विशेषता है?`,
+    options: ["Easy to learn", "Object-oriented", "Interpreter-based", "All of the above"],
+    answer: "All of the above"
+  },
+  {
+    question: `What principle does Python's interactive mode follow?\n
+    Python का interactive mode कौन सा principle follow करता है?`,
+    options: ["FIFO", "LIFO", "REPL (Read-Evaluate-Print-Loop)", "Write-Compile-Execute"],
+    answer: "REPL (Read-Evaluate-Print-Loop)"
+  },
+  {
+    question: `Which Python library is commonly used for building GUI applications?\n
+    GUI applications बनाने के लिए कौन सी Python लाइब्रेरी सामान्यतः उपयोग होती है?`,
+    options: ["NumPy", "TKinter", "Pandas", "Matplotlib"],
+    answer: "TKinter"
+  },
+  {
+    question: `What does “cross-platform” mean in Python?\n
+    Python में "cross-platform" का क्या मतलब है?`,
+    options: [
+      "Python works only on Windows",
+      "Python doesn’t support Linux",
+      "Python can run on multiple OS platforms",
+      "Python supports only GUI programs"
+    ],
+    answer: "Python can run on multiple OS platforms"
+  },
+  {
+    question: `Which of the following is a valid Python implementation?\n
+    निम्नलिखित में से कौन सा Python का valid implementation है?`,
+    options: ["Jython", "CPython", "IPython", "All of the above"],
+    answer: "All of the above"
+  },
+  {
+    question: `Which website provides the official Python installer?\n
+    आधिकारिक Python installer कौन सी वेबसाइट प्रदान करती है?`,
+    options: ["www.python.com", "www.pythoncode.org", "www.python.org", "www.installpython.com"],
+    answer: "www.python.org"
+  },
+  {
+    question: `To automatically set up path during installation, what must you do?\n
+    Installation के दौरान path automatic setup करने के लिए क्या करना चाहिए?`,
+    options: [
+      "Install manually",
+      `Click "Add Python X.X to PATH"`,
+      "Open CMD",
+      "Download from GitHub"
+    ],
+    answer: `Click "Add Python X.X to PATH"`
+  },
+  {
+    question: `Python files are saved with which extension?\n
+    Python files किस extension के साथ save होते हैं?`,
+    options: [".pt", ".python", ".py", ".pyt"],
+    answer: ".py"
+  },
+  {
+    question: `How many modes does Python support for writing code?\n
+    Python code लिखने के लिए कितने modes support करता है?`,
+    options: ["1", "2", "3", "4"],
+    answer: "2"
+  },
+  {
+    question: `Which symbol is used for single-line comments in Python?\n
+    Python में single-line comments के लिए कौन सा symbol उपयोग होता है?`,
+    options: ["//", "/* */", "#", "<!-- -->"],
+    answer: "#"
+  },
+  {
+    question: `What is a valid way to write multi-line comments in Python?\n
+    Python में multi-line comments लिखने का valid तरीका क्या है?`,
+    options: [
+      "Use triple quotes ''' '''",
+      'Use triple quotes """ """',
+      "Use multiple # symbols",
+      "All of the above"
+    ],
+    answer: "All of the above"
+  },
+  {
+    question: `Which of the following is a valid variable name in Python?\n
+    Python में निम्नलिखित में से कौन सा variable name valid है?`,
+    options: ["1name", "student-name", "student_name", "student@name"],
+    answer: "student_name"
+  },
+  {
+    question: `What is the assignment operator in Python?\n
+    Python में assignment operator कौन सा है?`,
+    options: [":=", "==", "=>", "="],
+    answer: "="
+  },
+  {
+    question: `Which naming convention is commonly used in Python?\n
+    Python में सबसे अधिक उपयोग की जाने वाली naming convention कौन सी है?`,
+    options: ["PascalCase", "camelCase", "lowercase_with_underscores", "ALL_CAPS"],
+    answer: "lowercase_with_underscores"
+  },
+  {
+    question: `Which of these keywords cannot be used as variable names?\n
+    इनमें से कौन सा keyword variable name के रूप में उपयोग नहीं किया जा सकता?`,
+    options: ["none", "print", "True", "false"],
+    answer: "True"
+  },
+   {
+    question: `What is the purpose of using print() while working with variables?\n
+    Variables के साथ काम करते समय print() का उद्देश्य क्या है?`,
+    options: [
+      "To modify variable",
+      "To assign new value",
+      "To debug and trace variable values",
+      "To delete variable"
+    ],
+    answer: "To debug and trace variable values"
+  },
+  {
+    question: `Which of the following is a mutable data type in Python?\n
+    Python में निम्नलिखित में से कौन सा डेटा टाइप mutable है?`,
+    options: ["Tuple", "List", "String", "Integer"],
+    answer: "List"
+  },
+  {
+    question: `What will be the output of: type(3.14) in Python?\n
+    Python में type(3.14) का output क्या होगा?`,
+    options: ["int", "float", "double", "decimal"],
+    answer: "float"
+  },
+  {
+    question: `Which of the following is an immutable type in Python?\n
+    Python में निम्नलिखित में से कौन सा immutable type है?`,
+    options: ["List", "Set", "Dictionary", "String"],
+    answer: "String"
+  },
+  {
+    question: `How do you define a dictionary in Python?\n
+    Python में dictionary कैसे define करते हैं?`,
+    options: [
+      "Using square brackets []",
+      "Using parenthesis ()",
+      "Using curly braces {} with key:value pairs",
+      "Using angle brackets <>"
+    ],
+    answer: "Using curly braces {} with key:value pairs"
+  },
+  {
+    question: `Which data type can hold a sequence of characters in Python?\n
+    Python में कौन सा डेटा टाइप characters का sequence रख सकता है?`,
+    options: ["Tuple", "List", "String", "Integer"],
+    answer: "String"
+  },
+  {
+    question: `What does the None keyword represent in Python?\n
+    Python में None keyword किसका प्रतिनिधित्व करता है?`,
+    options: ["Zero", "Empty string", "Null object", "Boolean False"],
+    answer: "Null object"
+  },
+  {
+    question: `Which of the following is not a valid Python Boolean value?\n
+    Python में निम्नलिखित में से कौन सा Boolean value valid नहीं है?`,
+    options: ["True", "False", "true", "Both A and B"],
+    answer: "true"
+  },
+  {
+    question: `What is the result of: type({1, 2, 3}) in Python?\n
+    Python में type({1, 2, 3}) का परिणाम क्या होगा?`,
+    options: ["dict", "list", "set", "tuple"],
+    answer: "set"
+  },
+  {
+    question: `What is the difference between set and frozenset in Python?\n
+    Python में set और frozenset में क्या अंतर है?`,
+    options: [
+      "set is ordered, frozenset is unordered",
+      "set is immutable, frozenset is mutable",
+      "set is mutable, frozenset is immutable",
+      "Both are the same"
+    ],
+    answer: "set is mutable, frozenset is immutable"
+  },
+  {
+    question: `Which of the following Python types allows duplicate values?\n
+    Python में निम्नलिखित में से कौन सा डेटा टाइप duplicate values allow करता है?`,
+    options: ["set", "frozenset", "list", "All of the above"],
+    answer: "list"
+  },
+  {
+    question: `What will be the result of: x = str(5)?\n
+    x = str(5) का परिणाम क्या होगा?`,
+    options: [
+      "x becomes integer 5",
+      "x becomes float 5.0",
+      "x becomes string '5'",
+      "Syntax error"
+    ],
+    answer: "x becomes string '5'"
+  },
+  {
+    question: `What is the output of the following code?\nprint(type("Hello"))\n
+    निम्नलिखित कोड का आउटपुट क्या होगा?\nprint(type("Hello"))`,
+    options: [
+      "<class 'char'>",
+      "<class 'character'>",
+      "<class 'string'>",
+      "<class 'str'>"
+    ],
+    answer: "<class 'str'>"
+  },
+  {
+    question: `Which of the following can be used to create a string in Python?\n
+    Python में string बनाने के लिए निम्नलिखित में से कौन सा उपयोग किया जा सकता है?`,
+    options: [
+      "Single quotes ' '",
+      "Double quotes \" \"",
+      "Triple quotes \"\"\" \"\"\"",
+      "All of the above"
+    ],
+    answer: "All of the above"
+  },
+  {
+    question: `What will be the output of: print(bool(""))?\n
+    print(bool(\"\")) का output क्या होगा?`,
+    options: ["True", "False", "Error", "None"],
+    answer: "False"
+  },
+  {
+    question: `What will the following statement return: bool("Python")?\n
+    निम्नलिखित statement का परिणाम क्या होगा: bool(\"Python\")?`,
+    options: ["False", "Error", "True", "None"],
+    answer: "True"
+  },
+  {
+    question: `What is the correct way to cast an integer 7 to a float in Python?\n
+    Python में integer 7 को float में cast करने का सही तरीका क्या है?`,
+    options: ["float = 7", "float(7.0)", "float(7)", "cast.float(7)"],
+    answer: "float(7)"
+  },
+  {
+    question: `What is the output of:\na = 10\nb = 20\nprint(a > b)\n
+    निम्नलिखित कोड का आउटपुट क्या होगा?\na = 10\nb = 20\nprint(a > b)`,
+    options: ["True", "False", "10", "20"],
+    answer: "False"
+  },
+  {
+    question: `Which of the following is a correct Boolean literal in Python?\n
+    Python में निम्नलिखित में से सही Boolean literal कौन सा है?`,
+    options: ["true", "FALSE", "True", "\"False\""],
+    answer: "True"
+  },
+  {
+    question: `What will be printed by this code?\na = 5\nb = \"5\"\nprint(type(a))\nprint(type(b))\n
+    इस कोड का आउटपुट क्या होगा?\na = 5\nb = \"5\"\nprint(type(a))\nprint(type(b))`,
+    options: ["int and float", "str and str", "int and str", "str and int"],
+    answer: "int and str"
+  },
+  {
+    question: `What will be the result of the expression: bool(0)?\n
+    bool(0) expression का परिणाम क्या होगा?`,
+    options: ["True", "False", "None", "Error"],
+    answer: "False"
+  },
+  {
+    question: `What type of operator is used in this expression: result = 10 + 5?\n
+    इस expression में कौन सा operator उपयोग किया गया है: result = 10 + 5?`,
+    options: [
+      "Logical Operator",
+      "Assignment Operator",
+      "Arithmetic Operator",
+      "Comparison Operator"
+    ],
+    answer: "Arithmetic Operator"
+  },
+  {
+    question: `Which of the following is a logical operator in Python?\n
+    Python में निम्नलिखित में से कौन सा logical operator है?`,
+    options: ["&", "or", "==", "+="],
+    answer: "or"
+  },
+  {
+    question: `What will be the result of:\na = 5\nb = 3\nprint(a > b and b < 2)\n
+    निम्नलिखित का परिणाम क्या होगा?\na = 5\nb = 3\nprint(a > b and b < 2)`,
+    options: ["True", "False", "Error", "None"],
+    answer: "False"
+  },
+  {
+    question: `Which of the following is an identity operator in Python?\n
+    Python में निम्नलिखित में से कौन सा identity operator है?`,
+    options: ["in", "==", "is", "or"],
+    answer: "is"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

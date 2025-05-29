@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: "Scanner class में एक character input लेने के लिए कौन सा expression सही है?",
+    options: [
+      "sc.nextChar()",
+      "sc.next().charAt(0)",
+      "sc.nextCharAt(0)",
+      "sc.nextLine().charAt(1)"
+    ],
+    answer: "sc.next().charAt(0)"
+  },
+  {
+    question: "Scanner class में int प्रकार का इनपुट लेने के लिए कौन सा method उपयोग किया जाता है?",
+    options: ["nextInteger()", "getInt()", "nextInt()", "readInt()"],
+    answer: "nextInt()"
+  },
+   {
+    question: "Scanner class का उपयोग करते समय इनपुट समाप्ति (EOF) की जांच करने के लिए कौन सा method प्रयोग होता है?",
+    options: ["hasNext()", "hasNextInt()", "hasNextLine()", "उपरोक्त सभी"],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा Scanner class का method सही नहीं है?",
+    options: ["nextBoolean()", "nextFloat()", "nextDouble()", "nextChar()"],
+    answer: "nextChar()"
+  },
+  {
+    question: "Scanner object बंद करने के लिए कौन सा method प्रयोग किया जाता है?",
+    options: ["stop()", "close()", "end()", "finish()"],
+    answer: "close()"
+  },
+  {
+    question: "Scanner class का उपयोग कौन से इनपुट स्रोत से किया जा सकता है?",
+    options: ["Standard Input (System.in)", "Files", "Strings", "उपरोक्त सभी"],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "Scanner का कौन सा method एक Boolean value पढ़ने के लिए उपयोग होता है?",
+    options: ["nextBool()", "nextBoolean()", "getBoolean()", "readBoolean()"],
+    answer: "nextBoolean()"
+  },
+  {
+    question: "Scanner class competitive programming के लिए क्यों कम उपयुक्त मानी जाती है?",
+    options: [
+      "यह मुश्किल है",
+      "यह धीमी होती है",
+      "यह गलत परिणाम देती है",
+      "यह केवल स्ट्रिंग इनपुट लेती है"
+    ],
+    answer: "यह धीमी होती है"
+  },
+  {
+    question: "Java में Console class किस पैकेज में उपलब्ध है?",
+    options: ["java.io", "java.util", "java.lang", "java.net"],
+    answer: "java.io"
+  },
+  {
+    question: "Console object प्राप्त करने के लिए कौन सा method प्रयोग होता है?",
+    options: [
+      "System.getConsole()",
+      "System.console()",
+      "Console.getConsole()",
+      "Console.console()"
+    ],
+    answer: "System.console()"
+  },
+  {
+    question: "Console से एक पूरी लाइन पढ़ने के लिए कौन सा method उपयोग किया जाता है?",
+    options: ["read()", "readLine()", "nextLine()", "getLine()"],
+    answer: "readLine()"
+  },
+  {
+    question: "Console से पासवर्ड सुरक्षित रूप से पढ़ने के लिए कौन सा method उपलब्ध है?",
+    options: ["readPassword()", "getPassword()", "readSecure()", "nextPassword()"],
+    answer: "readPassword()"
+  },
+  {
+    question: "Console class के readPassword() method से प्राप्त मान किस प्रकार का होता है?",
+    options: ["String", "char[]", "byte[]", "int"],
+    answer: "char[]"
+  },
+  {
+    question: "Console class का उपयोग कब संभव नहीं होता?",
+    options: [
+      "GUI applications में",
+      "Standard input/output के लिए",
+      "जब Java program IDE से चल रहा हो",
+      "दोनों A और C"
+    ],
+    answer: "दोनों A और C"
+  },
+  {
+    question: "Console से इनपुट लेते समय क्या output cursor स्क्रीन पर दिखता है?",
+    options: ["हाँ", "नहीं", "कभी-कभी", "केवल password के लिए नहीं"],
+    answer: "केवल password के लिए नहीं"
+  },
+  {
+    question: "Console class में formatted output देने के लिए कौन सा method होता है?",
+    options: ["print()", "println()", "format()", "printf()"],
+    answer: "printf()"
+  },
+  {
+    question: "Console से इनपुट लेते समय NullPointerException कब आता है?",
+    options: [
+      "जब Console object null होता है",
+      "जब इनपुट गलत होता है",
+      "जब आउटपुट डिवाइस जुड़ा न हो",
+      "Console में NullPointerException नहीं आता"
+    ],
+    answer: "जब Console object null होता है"
+  },
+   {
+    question: "Console class में डेटा पढ़ने के लिए कौन से method उपलब्ध हैं?",
+    options: [
+      "readLine() और readPassword()",
+      "next() और nextLine()",
+      "input() और get()",
+      "scan() और getInput()"
+    ],
+    answer: "readLine() और readPassword()"
+  },
+  {
+    question: "Java में control flow statements का मुख्य उद्देश्य क्या है?",
+    options: [
+      "प्रोग्राम को तेजी से चलाना",
+      "प्रोग्राम की flow को नियंत्रित करना",
+      "प्रोग्राम के errors को ठीक करना",
+      "डेटा को स्टोर करना"
+    ],
+    answer: "प्रोग्राम की flow को नियंत्रित करना"
+  },
+  {
+    question: "Java में Decision-Making statements कौन-कौन से हैं?",
+    options: [
+      "if और for",
+      "if और switch",
+      "for और while",
+      "break और continue"
+    ],
+    answer: "if और switch"
+  },
+  {
+    question: "Simple if statement में कौन-सी चीज़ जांची जाती है?",
+    options: [
+      "कोई integer मान",
+      "कोई string मान",
+      "Boolean condition",
+      "कोई loop condition"
+    ],
+    answer: "Boolean condition"
+  },
+  {
+    question: "नीचे दिए गए कोड में कौन-सा output आएगा?\nint x = 10;\nint y = 12;\nif(x + y > 20) {\n  System.out.println(\"x + y is greater than 20\");\n}",
+    options: [
+      "x + y is greater than 20",
+      "No output",
+      "Compilation error",
+      "None of the above"
+    ],
+    answer: "x + y is greater than 20"
+  },
+  {
+    question: "if-else statement में else block कब execute होता है?",
+    options: [
+      "जब if condition true हो",
+      "जब if condition false हो",
+      "हमेशा execute होता है",
+      "कभी execute नहीं होता"
+    ],
+    answer: "जब if condition false हो"
+  },
+  {
+    question: "if-else-if ladder का उपयोग कब किया जाता है?",
+    options: [
+      "केवल दो conditions के लिए",
+      "जब एक से ज्यादा conditions चेक करनी हों",
+      "केवल integer values के लिए",
+      "केवल loop के अंदर"
+    ],
+    answer: "जब एक से ज्यादा conditions चेक करनी हों"
+  },
+  {
+    question: "Nested if statement क्या होता है?",
+    options: [
+      "एक if के अंदर दूसरा if या else if हो",
+      "केवल एक if statement हो",
+      "केवल else block हो",
+      "None of the above"
+    ],
+    answer: "एक if के अंदर दूसरा if या else if हो"
+  },
+  {
+    question: "switch statement में कौन-कौन से डेटा टाइप उपयोग किए जा सकते हैं?",
+    options: [
+      "int, short, byte, char, String, Enum",
+      "float, double, long",
+      "boolean, double",
+      "None of the above"
+    ],
+    answer: "int, short, byte, char, String, Enum"
+  },
+  {
+    question: "switch statement में break का क्या उपयोग है?",
+    options: [
+      "प्रोग्राम को बंद करने के लिए",
+      "case execution को रोकने और switch से बाहर निकलने के लिए",
+      "नए case को शुरू करने के लिए",
+      "default case को skip करने के लिए"
+    ],
+    answer: "case execution को रोकने और switch से बाहर निकलने के लिए"
+  },
+  {
+    question: "नीचे दिए गए switch-case कोड का output क्या होगा?\nint num = 2;\nswitch (num){\n  case 0:\n    System.out.println(\"number is 0\");\n    break;\n  case 1:\n    System.out.println(\"number is 1\");\n    break;\n  default:\n    System.out.println(num);\n}",
+    options: [
+      "number is 0",
+      "number is 1",
+      "2",
+      "कोई output नहीं"
+    ],
+    answer: "2"
+  },
+  {
+    question: "Java में for loop का सही syntax कौन सा है?",
+    options: [
+      "for(initialization, condition, increment/decrement) { //statements }",
+      "for(initialization; condition; increment/decrement) { //statements }",
+      "for(condition; initialization; increment/decrement) { //statements }",
+      "for(initialization; increment; condition) { //statements }"
+    ],
+    answer: "for(initialization; condition; increment/decrement) { //statements }"
+  },
+  {
+    question: "Java का for-each loop किसके लिए उपयोग होता है?",
+    options: [
+      "जब लूप की संख्या पता हो",
+      "Array या Collection के elements को traverse करने के लिए",
+      "केवल Strings के लिए",
+      "कोई भी नहीं"
+    ],
+    answer: "Array या Collection के elements को traverse करने के लिए"
+  },
+   {
+    question: "while loop में condition कब चेक की जाती है?",
+    options: [
+      "Loop के body के बाद",
+      "Loop के body के पहले",
+      "कभी नहीं",
+      "केवल loop के बीच में"
+    ],
+    answer: "Loop के body के पहले"
+  },
+  {
+    question: "do-while loop में condition कब चेक की जाती है?",
+    options: [
+      "Loop के body के बाद",
+      "Loop के body के पहले",
+      "Loop के body के बीच में",
+      "कभी नहीं"
+    ],
+    answer: "Loop के body के बाद"
+  },
+  {
+    question: "कौन सा loop कम से कम एक बार जरूर execute होता है?",
+    options: [
+      "for loop",
+      "while loop",
+      "do-while loop",
+      "None of the above"
+    ],
+    answer: "do-while loop"
+  },
+  {
+    question: "break statement का उपयोग कब किया जाता है?",
+    options: [
+      "Loop या switch-case से बाहर निकलने के लिए",
+      "Loop को skip करने के लिए",
+      "Loop को restart करने के लिए",
+      "Loop को pause करने के लिए"
+    ],
+    answer: "Loop या switch-case से बाहर निकलने के लिए"
+  },
+  {
+    question: "continue statement क्या करता है?",
+    options: [
+      "Loop को पूरी तरह बंद कर देता है",
+      "Loop की current iteration को skip करता है और next iteration शुरू करता है",
+      "Loop को restart करता है",
+      "Loop की शुरुआत पर control ले जाता है"
+    ],
+    answer: "Loop की current iteration को skip करता है और next iteration शुरू करता है"
+  },
+  {
+    question: "निम्नलिखित कोड का आउटपुट क्या होगा?\nfor(int i=0; i<=5; i++) {\n  if(i == 3) {\n    break;\n  }\n  System.out.print(i + \" \");\n}",
+    options: [
+      "0 1 2 3 4 5",
+      "0 1 2",
+      "3 4 5",
+      "कोई आउटपुट नहीं"
+    ],
+    answer: "0 1 2"
+  },
+  {
+    question: "निम्नलिखित कोड का आउटपुट क्या होगा?\nfor(int i=0; i<=5; i++) {\n  if(i == 3) {\n    continue;\n  }\n  System.out.print(i + \" \");\n}",
+    options: [
+      "0 1 2 4 5",
+      "0 1 2 3 4 5",
+      "3 4 5",
+      "0 1 2"
+    ],
+    answer: "0 1 2 4 5"
+  },
+  {
+    question: "Java में labeled break का क्या उपयोग है?",
+    options: [
+      "किसी भी loop को तुरंत बंद करने के लिए",
+      "केवल inner loop को बंद करने के लिए",
+      "किसी विशेष labeled loop को बंद करने के लिए, खासकर nested loops में",
+      "Loop को skip करने के लिए"
+    ],
+    answer: "किसी विशेष labeled loop को बंद करने के लिए, खासकर nested loops में"
+  },
+  {
+    question: "What does System.exit(0) signify in Java?",
+    options: [
+      "Abnormal program termination",
+      "Successful program termination",
+      "JVM restart",
+      "Loop termination"
+    ],
+    answer: "Successful program termination"
+  },
+  {
+    question: "Which class contains the exit() method in Java?",
+    options: [
+      "java.util.System",
+      "java.lang.System",
+      "java.io.System",
+      "java.lang.Runtime"
+    ],
+    answer: "java.lang.System"
+  },
+  {
+    question: "What happens when System.exit() is called inside a try block?",
+    options: [
+      "finally block executes before JVM terminates",
+      "JVM terminates immediately, and finally block does not execute",
+      "catch block executes before JVM terminates",
+      "Program continues normally"
+    ],
+    answer: "JVM terminates immediately, and finally block does not execute"
+  },
+  {
+    question: "In Java, does the goto statement exist?",
+    options: [
+      "Yes, and it is frequently used",
+      "No, it is reserved but not implemented",
+      "Yes, but only in switch statements",
+      "No, replaced by return statements"
+    ],
+    answer: "No, it is reserved but not implemented"
+  },
+  {
+    question: "Which statement is used to exit a method prematurely?",
+    options: [
+      "break",
+      "continue",
+      "return",
+      "exit"
+    ],
+    answer: "return"
+  },
+  {
+    question: "What does a non-zero status code in System.exit(status) indicate?",
+    options: [
+      "Normal termination",
+      "Abnormal termination or error",
+      "JVM restart",
+      "No effect on program termination"
+    ],
+    answer: "Abnormal termination or error"
+  },
+   {
+    question: "Which of the following is true about the break statement in Java?",
+    options: [
+      "It exits only the current innermost loop or switch statement",
+      "It terminates the entire program",
+      "It skips the current iteration and continues next",
+      "It can be used outside loops"
+    ],
+    answer: "It exits only the current innermost loop or switch statement"
+  },
+  {
+    question: "How does Java achieve similar behavior to goto?",
+    options: [
+      "Using labeled break and continue statements",
+      "Using multiple return statements",
+      "By using System.exit()",
+      "By recursive method calls only"
+    ],
+    answer: "Using labeled break and continue statements"
+  },
+  {
+    question: "Which of the following is NOT a valid reason for Java not supporting goto?",
+    options: [
+      "Difficult to read and maintain code",
+      "Makes compiler optimization harder",
+      "Java does not allow any control flow statements",
+      "Labels with break/continue can replace goto functionality"
+    ],
+    answer: "Java does not allow any control flow statements"
+  },
+  {
+    question: "What happens when return statement is executed in a void method?",
+    options: [
+      "The program terminates",
+      "The method exits immediately without returning a value",
+      "It throws a compile-time error",
+      "It returns a null value"
+    ],
+    answer: "The method exits immediately without returning a value"
+  },
+  {
+    question: "Which of the following is NOT a valid integer data type in Java?",
+    options: [
+      "byte",
+      "short",
+      "float",
+      "int"
+    ],
+    answer: "float"
+  },
+  {
+    question: "What is the range of the byte data type in Java?",
+    options: [
+      "-32768 to 32767",
+      "-128 to 127",
+      "-2147483648 to 2147483647",
+      "-9223372036854775808 to 9223372036854775807"
+    ],
+    answer: "-128 to 127"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: '"Written Instructional Materials" (WIM) का मुख्य उद्देश्य क्या है?',
+    options: [
+      'A) केवल लिखित पाठ्यक्रमों को वितरित करना',
+      'B) छात्रों की व्यक्तिगत समस्याओं का समाधान करना',
+      'C) केवल शैक्षिक वीडियोज का उपयोग करना',
+      'D) शैक्षिक पाठ्यक्रम को सरल बनाना'
+    ],
+    answer: 'B) छात्रों की व्यक्तिगत समस्याओं का समाधान करना'
+  },
+  {
+    question: "किसे 'डेमॉन्स्ट्रेशन प्लान' कहा जाता है?",
+    options: [
+      'A) शिक्षक द्वारा किसी विशेष समय के लिए तैयार की गई थ्योरी आधारित पाठ्य योजना',
+      'B) शिक्षक द्वारा किसी विशेष समय के लिए तैयार की गई प्रैक्टिकल पाठ योजना',
+      'C) छात्रों द्वारा दिए गए असाइनमेंट',
+      'D) छात्रों द्वारा किए गए प्रोजेक्ट'
+    ],
+    answer: 'B) शिक्षक द्वारा किसी विशेष समय के लिए तैयार की गई प्रैक्टिकल पाठ योजना'
+  },
+  {
+    question: "निम्नलिखित में से कौन सा 'जानकारी पत्र' (Information Sheet) में शामिल होता है?",
+    options: [
+      'A) तकनीकी तथ्य, परिभाषाएँ, प्रक्रियाएँ और सिद्धांत',
+      'B) केवल छात्रों के उद्देश्य',
+      'C) पाठ्यक्रम की सूची',
+      'D) टेस्ट प्रश्नों की सूची'
+    ],
+    answer: 'A) तकनीकी तथ्य, परिभाषाएँ, प्रक्रियाएँ और सिद्धांत'
+  },
+  {
+    question: "'चेक शीट' का उद्देश्य क्या है?",
+    options: [
+      'A) केवल छात्रों की प्रगति ट्रैक करना',
+      'B) आवश्यक जानकारी एकत्र करना, जो विफलता को कम करने में मदद करती है',
+      'C) छात्रों के लिए प्रशंसा पत्र तैयार करना',
+      'D) छात्रों के लिए नया पाठ्यक्रम तैयार करना'
+    ],
+    answer: 'B) आवश्यक जानकारी एकत्र करना, जो विफलता को कम करने में मदद करती है'
+  },
+  {
+    question: 'किस प्रकार के सामग्री को "ऑपरेशन शीट" कहा जाता है?',
+    options: [
+      'A) एक सामग्री जिसमें किसी विशेष कौशल के लिए कई कार्यों और संचालन की प्रक्रिया शामिल होती है',
+      'B) एक सामग्री जो छात्रों के लिए पुस्तकालय में उपलब्ध है',
+      'C) एक सामान्य जानकारी पत्र जो सभी छात्रों के लिए उपयोगी हो',
+      'D) एक उन्नत प्रोग्रामिंग अभ्यास'
+    ],
+    answer: 'A) एक सामग्री जिसमें किसी विशेष कौशल के लिए कई कार्यों और संचालन की प्रक्रिया शामिल होती है'
+  },
+  {
+    question: "'Written Instructional Materials' के लिए नीचे दिए गए में से कौन सा सही है?",
+    options: [
+      'A) जानकारी केवल आसान शब्दों में लिखी जानी चाहिए',
+      'B) इन्फॉर्मेशन को संकुचित और संक्षिप्त रखना चाहिए',
+      'C) कोई संदर्भ नहीं देना चाहिए',
+      'D) केवल एक तकनीकी शब्दावली का उपयोग करना चाहिए'
+    ],
+    answer: 'A) जानकारी केवल आसान शब्दों में लिखी जानी चाहिए'
+  },
+  {
+    question: "'Written Instructional Materials' के लिए नीचे दिए गए में से कौन सा सही नहीं है?",
+    options: [
+      'A) यह हमेशा कम शब्दों में होना चाहिए',
+      'B) इसे संक्षिप्त और सरल भाषा में लिखा जाना चाहिए',
+      'C) इसमें केवल शिक्षक द्वारा तैयार की गई जानकारी शामिल होनी चाहिए',
+      'D) इसका उद्देश्य छात्रों को विचार करने और सीखने में मदद करना है'
+    ],
+    answer: 'C) इसमें केवल शिक्षक द्वारा तैयार की गई जानकारी शामिल होनी चाहिए'
+  },
+  {
+    question: '"लर्निंग आउटकम्स" क्या हैं?',
+    options: [
+      'A) उन विशिष्ट लक्ष्यों का बयान जो छात्र सीखने के अंत में हासिल करेंगे',
+      'B) छात्रों द्वारा पाठ्यक्रम के लिए दिए गए असाइनमेंट्स',
+      'C) छात्रों के लिए दिए गए प्रश्न पत्र',
+      'D) शिक्षकों के लिए निर्देश'
+    ],
+    answer: 'A) उन विशिष्ट लक्ष्यों का बयान जो छात्र सीखने के अंत में हासिल करेंगे'
+  },
+  {
+    question: "'प्रोग्रेस चार्ट' का उद्देश्य क्या है?",
+    options: [
+      'A) शिक्षक और छात्र की प्रगति को ट्रैक करना',
+      'B) छात्रों के लिए एक परीक्षा पत्र तैयार करना',
+      'C) छात्रों को पूरी किताब से अवगत कराना',
+      'D) परीक्षा में छात्रों के प्रदर्शन को ट्रैक करना'
+    ],
+    answer: 'A) शिक्षक और छात्र की प्रगति को ट्रैक करना'
+  },
+  {
+    question: 'निम्नलिखित में से कौन सी विशेषता एक अच्छे "Written Instructional Material" में नहीं होनी चाहिए?',
+    options: [
+      'A) यह छात्रों की आवश्यकताओं के अनुसार स्पष्ट और सीधा होना चाहिए',
+      'B) इसे सही प्रकार के वर्तनी, व्याकरण और चित्रों का उपयोग करना चाहिए',
+      'C) यह केवल एक विशेषज्ञ के लिए लिखा जाना चाहिए',
+      'D) इसे ऐसे तरीके से तैयार करना चाहिए कि छात्र अपने उद्देश्यों को समझ सके'
+    ],
+    answer: 'C) यह केवल एक विशेषज्ञ के लिए लिखा जाना चाहिए'
+  },
+  {
+    question: 'ऑपरेशन शीट का मुख्य उद्देश्य क्या है?',
+    options: [
+      'A) किसी विशेष काम को पूरा करने के लिए निर्देश प्रदान करना',
+      'B) एक कौशल या ऑपरेशन को करने के लिए चरणों की अनुक्रमिका तैयार करना',
+      'C) काम के लिए आवश्यक उपकरणों की सूची बनाना',
+      'D) विद्यार्थी के सैद्धांतिक ज्ञान का परीक्षण करना'
+    ],
+    answer: 'B) एक कौशल या ऑपरेशन को करने के लिए चरणों की अनुक्रमिका तैयार करना'
+  },
+  {
+    question: "ऑपरेशन शीट में 'सामग्री' के बारे में क्या विवरण होना चाहिए?",
+    options: [
+      'A) सामग्री का प्रकार, आकार, और आकार',
+      'B) केवल सामग्री का नाम',
+      'C) सामग्री का मूल्य',
+      'D) सामग्री का उपयोग'
+    ],
+    answer: 'A) सामग्री का प्रकार, आकार, और आकार'
+  },
+  {
+    question: "ऑपरेशन शीट में 'सुरक्षा आदतें' क्यों दी जाती हैं?",
+    options: [
+      'A) काम को तेज़ी से पूरा करने के लिए',
+      'B) दुर्घटनाओं से बचने के लिए',
+      'C) सामग्री की सूची बनाने के लिए',
+      'D) प्रशिक्षक का मार्गदर्शन करने के लिए'
+    ],
+    answer: 'B) दुर्घटनाओं से बचने के लिए'
+  },
+  {
+    question: "ऑपरेशन शीट में 'प्रक्रिया' (Procedure) का क्या महत्व है?",
+    options: [
+      'A) यह केवल उपकरणों की सूची होती है',
+      'B) यह कार्य को पूरा करने के लिए चरण दर चरण निर्देश देती है',
+      'C) यह केवल सुरक्षा के निर्देश देती है',
+      'D) यह कार्य को प्रदर्शित करने का तरीका बताती है'
+    ],
+    answer: 'B) यह कार्य को पूरा करने के लिए चरण दर चरण निर्देश देती है'
+  },
+  {
+    question: 'जॉब शीट का मुख्य उद्देश्य क्या है?',
+    options: [
+      'A) किसी विशिष्ट कार्य के लिए विस्तृत कार्य निर्देश',
+      'B) सुरक्षा नियमों की सूची',
+      'C) कार्य के लिए आवश्यक सामग्री की सूची',
+      'D) विद्यार्थी का आकलन करना'
+    ],
+    answer: 'A) किसी विशिष्ट कार्य के लिए विस्तृत कार्य निर्देश'
+  },
+  {
+    question: 'जॉब शीट में क्या शामिल होता है?',
+    options: [
+      'A) कार्य की प्रक्रिया और सुरक्षा उपाय',
+      'B) केवल उपकरणों की सूची',
+      'C) कार्य से संबंधित किसी भी प्रकार का सामान',
+      'D) सिर्फ सामग्री का प्रकार'
+    ],
+    answer: 'A) कार्य की प्रक्रिया और सुरक्षा उपाय'
+  },
+   {
+    question: "'जॉब शीट' और 'ऑपरेशन शीट' में क्या अंतर है?",
+    options: [
+      "जॉब शीट में एक कार्य के कई ऑपरेशनों की जानकारी होती है, जबकि ऑपरेशन शीट केवल एक ऑपरेशन की जानकारी देती है",
+      "ऑपरेशन शीट में सुरक्षा उपाय नहीं होते",
+      "जॉब शीट केवल कागज पर होती है, जबकि ऑपरेशन शीट डिजिटल होती है",
+      "ऑपरेशन शीट में केवल प्रक्रिया शामिल होती है, जॉब शीट में कोई प्रक्रिया नहीं होती"
+    ],
+    answer: "जॉब शीट में एक कार्य के कई ऑपरेशनों की जानकारी होती है, जबकि ऑपरेशन शीट केवल एक ऑपरेशन की जानकारी देती है"
+  },
+  {
+    question: "सिखाई सामग्री (Instructional Material) का क्या उद्देश्य है?",
+    options: [
+      "विद्यार्थियों को व्यायाम करवाना",
+      "जानकारी और ज्ञान को स्पष्ट रूप से प्रस्तुत करना",
+      "छात्रों को मनोरंजन देना",
+      "छात्रों को इंटरनेट से जोड़ना"
+    ],
+    answer: "जानकारी और ज्ञान को स्पष्ट रूप से प्रस्तुत करना"
+  },
+  {
+    question: "'ऑपरेशन शीट' का क्या उद्देश्य है?",
+    options: [
+      "विद्यार्थी के शारीरिक विकास को मापना",
+      "विद्यार्थियों को एक विशेष कौशल सिखाना",
+      "विद्यार्थियों के खेल संबंधी गतिविधियाँ करना",
+      "शैक्षिक वीडियो बनाना"
+    ],
+    answer: "विद्यार्थियों को एक विशेष कौशल सिखाना"
+  },
+  {
+    question: "'जॉब शीट' का क्या महत्व है?",
+    options: [
+      "यह केवल प्रदर्शन के लिए होती है",
+      "यह सभी कार्यों की योजना को व्यवस्थित करती है",
+      "यह छात्रों को परीक्षा देने के लिए उपयोग होती है",
+      "यह बच्चों के लिए सिर्फ चित्रकला से संबंधित होती है"
+    ],
+    answer: "यह सभी कार्यों की योजना को व्यवस्थित करती है"
+  },
+  {
+    question: "मोबाइल लर्निंग का एक लाभ क्या है?",
+    options: [
+      "यह महंगा है",
+      "यह केवल उच्च शिक्षा के लिए है",
+      "यह छात्रों को किसी भी समय और कहीं भी सीखने की सुविधा प्रदान करता है",
+      "यह बहुत जटिल है"
+    ],
+    answer: "यह छात्रों को किसी भी समय और कहीं भी सीखने की सुविधा प्रदान करता है"
+  },
+  {
+    question: "प्रस्तुतिकरण सामग्री (Presentation Materials) में कौन सा तत्व शामिल होता है?",
+    options: [
+      "छात्र का नाम",
+      "छात्र का जन्म प्रमाण पत्र",
+      "वांछित ज्ञान और जानकारी",
+      "केवल चित्र"
+    ],
+    answer: "वांछित ज्ञान और जानकारी"
+  },
+  {
+    question: "ऑपरेशन शीट और जॉब शीट में क्या अंतर है?",
+    options: [
+      "ऑपरेशन शीट केवल एक कार्य के लिए होती है जबकि जॉब शीट कई कार्यों के लिए होती है",
+      "ऑपरेशन शीट का उपयोग केवल छोटे बच्चों के लिए किया जाता है",
+      "जॉब शीट का उद्देश्य केवल अध्यापकों के लिए है",
+      "दोनों में कोई अंतर नहीं है"
+    ],
+    answer: "ऑपरेशन शीट केवल एक कार्य के लिए होती है जबकि जॉब शीट कई कार्यों के लिए होती है"
+  },
+  {
+    question: "'इंटरएक्टिव डिस्प्ले बोर्ड' का एक प्रमुख लाभ क्या है?",
+    options: [
+      "यह केवल छवियाँ दिखाता है",
+      "यह छात्रों के साथ संवाद और बातचीत को बढ़ाता है",
+      "यह केवल संदेशों को पोस्ट करने के लिए है",
+      "यह बहुत महंगा है"
+    ],
+    answer: "यह छात्रों के साथ संवाद और बातचीत को बढ़ाता है"
+  },
+  {
+    question: "सूचनात्मक पत्र (Information Sheet) के तत्व में से कौन सा नहीं है?",
+    options: [
+      "इकाई संख्या (Unit No)",
+      "पाठ्यक्रम का उद्देश्य (Course Objective)",
+      "पाठ संख्या (Lesson No)",
+      "संदर्भ सामग्री (Reference Material)"
+    ],
+    answer: "पाठ्यक्रम का उद्देश्य (Course Objective)"
+  },
+  {
+    question: "कार्यपत्र (Job Sheet) और ऑपरेशन शीट (Operation Sheet) के बीच क्या अंतर है?",
+    options: [
+      "कार्यपत्र एक एकल कार्य के लिए है जबकि ऑपरेशन शीट एक श्रेणीबद्ध प्रक्रियाओं के लिए है",
+      "कार्यपत्र में सुरक्षा उपायों का उल्लेख नहीं किया जाता",
+      "ऑपरेशन शीट अधिक विस्तृत होती है",
+      "कार्यपत्र में शैक्षिक उद्देश्य नहीं होते"
+    ],
+    answer: "कार्यपत्र एक एकल कार्य के लिए है जबकि ऑपरेशन शीट एक श्रेणीबद्ध प्रक्रियाओं के लिए है"
+  },
+  {
+    question: "सूचनात्मक पत्र (Information Sheet) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "कार्यपत्र तैयार करना",
+      "विस्तृत चित्र देना",
+      "छात्रों को किसी विशेष सूचना या प्रक्रिया को समझने में मदद करना",
+      "शिक्षक द्वारा निर्देश देने के लिए"
+    ],
+    answer: "छात्रों को किसी विशेष सूचना या प्रक्रिया को समझने में मदद करना"
+  },
+  {
+    question: "कार्यपत्र (Job Sheet) में कौन सा तत्व शामिल नहीं होता?",
+    options: [
+      "कार्य की क्रमवार प्रक्रिया",
+      "उपकरण और सामग्री की सूची",
+      "पाठ्यक्रम की थ्योरी",
+      "सुरक्षा नियम"
+    ],
+    answer: "पाठ्यक्रम की थ्योरी"
+  },
+  {
+    question: "सूचनात्मक पत्र (Information Sheet) के लिए सबसे उपयुक्त कथन कौन सा है?",
+    options: [
+      "यह व्यावहारिक कार्यों के लिए उपयुक्त है",
+      "यह केवल आवश्यक पाठ्यक्रम सामग्री के बारे में जानकारी प्रदान करता है",
+      "यह एक शैक्षिक उद्देश्य से जुड़ा होता है और उपयोगकर्ता के लिए संदर्भ प्रदान करता है",
+      "यह केवल प्रशिक्षक के लिए उपयोगी होता है"
+    ],
+    answer: "यह एक शैक्षिक उद्देश्य से जुड़ा होता है और उपयोगकर्ता के लिए संदर्भ प्रदान करता है"
+  },
+  {
+    question: "कार्यपत्र (Job Sheet) के विकास के लिए कौन सा कदम सही नहीं है?",
+    options: [
+      "कार्यों के क्रम को स्पष्ट रूप से सूचीबद्ध करना",
+      "केवल एक कार्य के लिए निर्देश देना",
+      "प्रशिक्षक की अनुपस्थिति में उपयोग के लिए तैयार करना",
+      "विभिन्न कार्यों के लिए प्रक्रिया को जोड़ना"
+    ],
+    answer: "प्रशिक्षक की अनुपस्थिति में उपयोग के लिए तैयार करना"
+  },
+  {
+    question: "सूचनात्मक पत्र (Information Sheet) की एक प्रमुख विशेषता क्या है?",
+    options: [
+      "यह सबसे अधिक चित्रों का उपयोग करता है",
+      "यह केवल संक्षिप्त बुलेट पॉइंट्स में जानकारी प्रदान करता है",
+      "यह उद्देश्य आधारित है और सटीक जानकारी प्रदान करता है",
+      "यह केवल अवलोकन के लिए होता है"
+    ],
+    answer: "यह उद्देश्य आधारित है और सटीक जानकारी प्रदान करता है"
+  },
+  {
+    question: "प्रशिक्षण सामग्री के मुख्य उद्देश्य क्या हैं?",
+    options: [
+      "केवल श्रमिकों की उपस्थिति को रिकॉर्ड करना",
+      "स्थिर और आदान-प्रदान के तरीकों को समझना",
+      "सीखने को सरल और प्रभावी बनाना",
+      "केवल तकनीकी जानकारी प्रदान करना"
+    ],
+    answer: "सीखने को सरल और प्रभावी बनाना"
+  },
+  {
+    question: "संचालन पत्र (Operation Sheet) में निम्नलिखित में से कौन सा तत्व नहीं होता है?",
+    options: [
+      "कार्यविधि",
+      "सामग्री की सूची",
+      "विश्लेषण रिपोर्ट",
+      "सुरक्षा दिशा-निर्देश"
+    ],
+    answer: "विश्लेषण रिपोर्ट"
+  },
+   {
+    question: "सूचना पत्र (Information Sheet) के कौन से तत्व होते हैं?",
+    options: [
+      "शीर्षक, उद्देश्य, सामग्री, प्रश्न",
+      "शीर्षक, प्रक्रिया, सुरक्षा दिशा-निर्देश, संदर्भ सामग्री",
+      "शीर्षक, सामग्री की सूची, टूल्स",
+      "सभी"
+    ],
+    answer: "शीर्षक, प्रक्रिया, सुरक्षा दिशा-निर्देश, संदर्भ सामग्री"
+  },
+  {
+    question: "कार्य पत्र (Job Sheet) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "केवल विश्लेषण कार्य करना",
+      "एक विशिष्ट कार्य के लिए सभी चरणों की योजना बनाना",
+      "प्रशिक्षकों के लिए योजनाएं बनाना",
+      "केवल एक कार्य को पूरा करना"
+    ],
+    answer: "एक विशिष्ट कार्य के लिए सभी चरणों की योजना बनाना"
+  },
+  {
+    question: "कार्यपत्र (Assignment Sheet) में निम्नलिखित में से कौन सा तत्व शामिल होता है?",
+    options: [
+      "कार्य की प्रकृति",
+      "संकेतक शब्द",
+      "सामग्री सूची",
+      "सभी"
+    ],
+    answer: "सभी"
+  },
+  {
+    question: "सूचना पत्र के क्या लाभ हो सकते हैं?",
+    options: [
+      "यह सीखने के उद्देश्य के अनुरूप होता है",
+      "यह हमेशा प्रशिक्षण के साथ कक्षा में किया जाता है",
+      "यह केवल दृश्य अनुभवों पर केंद्रित होता है",
+      "सभी"
+    ],
+    answer: "यह सीखने के उद्देश्य के अनुरूप होता है"
+  },
+  {
+    question: "प्रशिक्षण सामग्री के सामान्य लाभ में क्या शामिल है?",
+    options: [
+      "छात्रों का ध्यान केंद्रित करना",
+      "छात्रों की भागीदारी बढ़ाना",
+      "दोनों",
+      "केवल शब्दों का उपयोग करना"
+    ],
+    answer: "दोनों"
+  },
+  {
+    question: "कार्यपत्र (Assignment Sheet) के कौन से तत्व सही हैं?",
+    options: [
+      "उद्देश्य और प्रक्रिया",
+      "कार्य और सवाल",
+      "दोनों A और B",
+      "कोई नहीं"
+    ],
+    answer: "दोनों A और B"
+  },
+  {
+    question: "कार्यपत्र (Job Sheet) और संचालन पत्र (Operation Sheet) में क्या अंतर है?",
+    options: [
+      "दोनों बिल्कुल एक जैसे होते हैं",
+      "संचालन पत्र एक विशिष्ट कार्य के लिए है, जबकि कार्यपत्र में कई कार्य होते हैं",
+      "कार्यपत्र केवल व्यापारिक कार्य के लिए है",
+      "संचालन पत्र में जानकारी दी जाती है, कार्यपत्र में परीक्षण"
+    ],
+    answer: "संचालन पत्र एक विशिष्ट कार्य के लिए है, जबकि कार्यपत्र में कई कार्य होते हैं"
+  },
+  {
+    question: "सूचना पत्र में संदर्भ सामग्री के लिए क्या शामिल किया जा सकता है?",
+    options: [
+      "किताबें, लेख, और पूर्व पाठ",
+      "केवल किताबें",
+      "कोई भी संदर्भ नहीं",
+      "केवल शैक्षिक वीडियो"
+    ],
+    answer: "किताबें, लेख, और पूर्व पाठ"
+  }
+  ];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

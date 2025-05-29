@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+   {
+    question: "CAL का मुख्य उद्देश्य क्या है?",
+    options: [
+      "पढ़ाई में मनोरंजन लाना",
+      "छात्रों को केवल व्याख्यान सुनाना",
+      "शिक्षण को प्रभावी और इंटरैक्टिव बनाना",
+      "छात्रों को परीक्षा के लिए तैयार करना"
+    ],
+    answer: "शिक्षण को प्रभावी और इंटरैक्टिव बनाना"
+  },
+  {
+    question: "कंप्यूटर सहायतित अधिगम का आरंभ किस दशक में माना जाता है?",
+    options: ["1930 के दशक", "1950 के दशक", "1970 के दशक", "2000 के दशक"],
+    answer: "1950 के दशक"
+  },
+  {
+    question: "CAL में किसका उपयोग जटिल अवधारणाओं को आसान बनाने के लिए किया जाता है?",
+    options: [
+      "पेपर आधारित नोट्स",
+      "प्रोजेक्टर",
+      "एनिमेशन और सिमुलेशन",
+      "मौखिक व्याख्यान"
+    ],
+    answer: "एनिमेशन और सिमुलेशन"
+  },
+  {
+    question: "CAL का कौन-सा लाभ पारंपरिक शिक्षण में नहीं पाया जाता?",
+    options: [
+      "समूह अध्ययन",
+      "समय पर कक्षा",
+      "व्यक्तिगत गति से अधिगम",
+      "शिक्षकों की निगरानी"
+    ],
+    answer: "व्यक्तिगत गति से अधिगम"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा CAL का एक उदाहरण है?",
+    options: [
+      "ब्लैकबोर्ड पर पढ़ाना",
+      "वीडियो कॉन्फ्रेंसिंग",
+      "मौखिक परीक्षा",
+      "रजिस्टर में उपस्थिति दर्ज करना"
+    ],
+    answer: "वीडियो कॉन्फ्रेंसिंग"
+  },
+  {
+    question: "CAL का सबसे लोकप्रिय उपयोग किस रूप में होता है?",
+    options: [
+      "ग्राफिक्स डिजाइनिंग",
+      "गेम्स खेलने के लिए",
+      "सिमुलेशन आधारित अधिगम",
+      "ईमेल भेजने के लिए"
+    ],
+    answer: "सिमुलेशन आधारित अधिगम"
+  },
+  {
+    question: "CAL किस प्रकार की लर्निंग को बढ़ावा देता है?",
+    options: [
+      "केवल सैद्धांतिक",
+      "निष्क्रिय",
+      "सक्रिय और सहभागितापूर्ण",
+      "रट्टा आधारित"
+    ],
+    answer: "सक्रिय और सहभागितापूर्ण"
+  },
+  {
+    question: "कंप्यूटर आधारित शिक्षण में कौन-सा लाभ विद्यार्थियों के लिए अत्यधिक महत्वपूर्ण है?",
+    options: [
+      "एक ही स्थान पर सीमित रहना",
+      "केवल पुस्तक आधारित अध्ययन",
+      "किसी भी समय, कहीं भी अध्ययन करने की सुविधा",
+      "शिक्षक पर पूर्ण निर्भरता"
+    ],
+    answer: "किसी भी समय, कहीं भी अध्ययन करने की सुविधा"
+  },
+  {
+    question: "PowerPoint का मुख्य उपयोग क्या है?",
+    options: [
+      "दस्तावेज़ लिखने के लिए",
+      "चित्र संपादन के लिए",
+      "प्रस्तुति (Presentation) बनाने के लिए",
+      "ऑडियो रिकॉर्डिंग के लिए"
+    ],
+    answer: "प्रस्तुति (Presentation) बनाने के लिए"
+  },
+  {
+    question: "PowerPoint को प्रभावी रूप से उपयोग करने से क्या लाभ होता है?",
+    options: [
+      "छात्र अधिक सो जाते हैं",
+      "शिक्षक को बार-बार बोर्ड पर लिखना पड़ता है",
+      "पढ़ाई और समझ दोनों में सुधार होता है",
+      "पढ़ाई में कोई फर्क नहीं पड़ता"
+    ],
+    answer: "पढ़ाई और समझ दोनों में सुधार होता है"
+  },
+  {
+    question: "PowerPoint में कौन-सा दृश्य माध्यम छात्रों के लिए आकर्षक होता है?",
+    options: [
+      "केवल टेक्स्ट",
+      "केवल रंग",
+      "चित्र, ध्वनि, और एनिमेशन",
+      "कोडिंग"
+    ],
+    answer: "चित्र, ध्वनि, और एनिमेशन"
+  },
+  {
+    question: "Presenter View का प्रयोग किसलिए किया जाता है?",
+    options: [
+      "छात्रों को स्लाइड छिपाने के लिए",
+      "ऑडियो सुनने के लिए",
+      "शिक्षक के नोट्स देखने और मार्गदर्शन के लिए",
+      "टेक्स्ट छोटा करने के लिए"
+    ],
+    answer: "शिक्षक के नोट्स देखने और मार्गदर्शन के लिए"
+  },
+  {
+    question: "PowerPoint प्रस्तुति में 'B' दबाने से क्या होता है?",
+    options: [
+      "अगली स्लाइड खुलती है",
+      "प्रस्तुति बंद हो जाती है",
+      "स्क्रीन काली हो जाती है",
+      "टाइमर शुरू होता है"
+    ],
+    answer: "स्क्रीन काली हो जाती है"
+  },
+  {
+    question: "PowerPoint में स्लाइड टेक्स्ट को समझदारी से प्रदर्शित करने का सही नियम कौन-सा है?",
+    options: ["8x8 नियम", "6x6 नियम", "4x4 नियम", "10x10 नियम"],
+    answer: "6x6 नियम"
+  },
+  {
+    question: "PowerPoint के ज़रिए शिक्षक क्या नहीं कर सकते?",
+    options: [
+      "प्रश्न पूछना",
+      "छात्रों की उत्तर पुस्तिका जाँचना",
+      "इंटरएक्टिव केस स्टडी प्रस्तुत करना",
+      "छात्रों से प्रतिक्रिया लेना"
+    ],
+    answer: "छात्रों की उत्तर पुस्तिका जाँचना"
+  },
+   {
+    question: "PowerPoint स्लाइड्स में अत्यधिक टेक्स्ट का क्या नकारात्मक प्रभाव होता है?",
+    options: [
+      "छात्र ध्यान से पढ़ते हैं",
+      "प्रस्तुति प्रभावशाली बनती है",
+      "छात्रों की रुचि कम हो सकती है",
+      "टेक्स्ट स्पष्ट दिखाई देता है"
+    ],
+    answer: "छात्रों की रुचि कम हो सकती है"
+  },
+  {
+    question: "PowerPoint का सबसे उपयुक्त उपयोग क्या है?",
+    options: [
+      "कक्षा की उपस्थिति दर्ज करने के लिए",
+      "टेक्स्टबुक की जगह इस्तेमाल करने के लिए",
+      "शिक्षण को रोचक, इंटरएक्टिव और दृश्यात्मक बनाने के लिए",
+      "मोबाइल ऐप डाउनलोड करने के लिए"
+    ],
+    answer: "शिक्षण को रोचक, इंटरएक्टिव और दृश्यात्मक बनाने के लिए"
+  },
+  {
+    question: "PowerPoint का गलत उपयोग कौन-सा है?",
+    options: [
+      "स्लाइड्स पर प्रश्न पूछना",
+      "सिर्फ स्लाइड्स को पढ़कर प्रस्तुति देना",
+      "Presenter View का उपयोग करना",
+      "छात्रों से प्रतिक्रिया लेना"
+    ],
+    answer: "सिर्फ स्लाइड्स को पढ़कर प्रस्तुति देना"
+  },
+  {
+    question: "PowerPoint में नई प्रस्तुति शुरू करने के लिए सबसे पहले क्या करना होता है?",
+    options: [
+      "Insert टैब खोलना",
+      "File → New पर क्लिक करना",
+      "Save करना",
+      "Print पर क्लिक करना"
+    ],
+    answer: "File → New पर क्लिक करना"
+  },
+  {
+    question: "\"From Design Template\" विकल्प किस डायलॉग बॉक्स में होता है?",
+    options: [
+      "Slide Layout",
+      "Insert Menu",
+      "New Presentation",
+      "Animation Pane"
+    ],
+    answer: "New Presentation"
+  },
+  {
+    question: "Slide Layout को कैसे बदला जा सकता है?",
+    options: [
+      "File → Save As",
+      "View → Layout",
+      "Format → Slide Layout",
+      "Insert → Slide"
+    ],
+    answer: "Format → Slide Layout"
+  },
+  {
+    question: "स्लाइड में टेक्स्ट जोड़ने के लिए किस बॉक्स पर क्लिक किया जाता है?",
+    options: [
+      "Click to Add Picture",
+      "Click to Add Text / Click to Add Title",
+      "Click to Insert Table",
+      "Click to Zoom"
+    ],
+    answer: "Click to Add Text / Click to Add Title"
+  },
+  {
+    question: "स्लाइड में चित्र जोड़ने के लिए किस आइकन पर क्लिक करना होता है?",
+    options: [
+      "ग्राफ आइकन",
+      "टेबल आइकन",
+      "पहाड़ और सूरज जैसा दिखने वाला आइकन",
+      "वीडियो आइकन"
+    ],
+    answer: "पहाड़ और सूरज जैसा दिखने वाला आइकन"
+  },
+  {
+    question: "चित्र का आकार कैसे बदला जाता है?",
+    options: [
+      "Insert → Resize",
+      "Picture पर क्लिक करके उसके किनारों को खींचकर",
+      "Format → Shrink Picture",
+      "Text Tool से"
+    ],
+    answer: "Picture पर क्लिक करके उसके किनारों को खींचकर"
+  },
+  {
+    question: "PowerPoint फाइल को कैसे सेव किया जाता है?",
+    options: [
+      "File → Open",
+      "File → Export",
+      "File → Save As",
+      "Insert → Save"
+    ],
+    answer: "File → Save As"
+  },
+  {
+    question: "PowerPoint प्रस्तुति को देखने के लिए किस कुंजी को दबाया जाता है?",
+    options: [
+      "Ctrl + P",
+      "Shift + S",
+      "F5",
+      "Alt + Enter"
+    ],
+    answer: "F5"
+  },
+  {
+    question: "PowerPoint स्लाइड बनाने का आखिरी चरण क्या है?",
+    options: [
+      "Animation जोड़ना",
+      "Slide Delete करना",
+      "Save करना और F5 दबाना",
+      "Hyperlink जोड़ना"
+    ],
+    answer: "Save करना और F5 दबाना"
+  },
+  {
+    question: "स्लाइड में डिज़ाइन टेम्पलेट कैसे लगाया जाता है?",
+    options: [
+      "Format → Animation",
+      "New Presentation → From Design Template",
+      "Insert → Background",
+      "Tools → Options"
+    ],
+    answer: "New Presentation → From Design Template"
+  },
+  {
+    question: "PowerPoint के ज़रिए शिक्षक क्या नहीं कर सकते?",
+    options: [
+      "प्रश्न पूछना",
+      "छात्रों की उत्तर पुस्तिका जाँचना",
+      "इंटरएक्टिव केस स्टडी प्रस्तुत करना",
+      "छात्रों से प्रतिक्रिया लेना"
+    ],
+    answer: "छात्रों की उत्तर पुस्तिका जाँचना"
+  },
+  {
+    question: "LCD प्रोजेक्टर का मुख्य उपयोग क्या है?",
+    options: [
+      "प्रिंटिंग के लिए",
+      "वीडियो गेम खेलने के लिए",
+      "स्क्रीन पर वीडियो, छवि या कंप्यूटर डेटा प्रदर्शित करने के लिए",
+      "केवल ऑडियो सुनने के लिए"
+    ],
+    answer: "स्क्रीन पर वीडियो, छवि या कंप्यूटर डेटा प्रदर्शित करने के लिए"
+  },
+  {
+    question: "LCD प्रोजेक्टर की खोज किसने की थी?",
+    options: [
+      "Charles Babbage",
+      "Bill Gates",
+      "Gene Dolgoff",
+      "Alan Turing"
+    ],
+    answer: "Gene Dolgoff"
+  },
+   {
+    question: "LCD प्रोजेक्टर में प्रयुक्त तीन रंग कौन-से होते हैं?",
+    options: [
+      "काला, सफेद, भूरा",
+      "नीला, पीला, गुलाबी",
+      "लाल, हरा, नीला",
+      "नारंगी, बैंगनी, स्लेटी"
+    ],
+    answer: "लाल, हरा, नीला"
+  },
+  {
+    question: "डिजिटल कैमरा किस प्रकार की छवियाँ बनाता है?",
+    options: [
+      "स्लाइड",
+      "नेगेटिव",
+      "डिजिटल",
+      "प्रिंटेड"
+    ],
+    answer: "डिजिटल"
+  },
+  {
+    question: "डिजिटल कैमरे में कैसा लेंस प्रयोग नहीं करना चाहिए?",
+    options: [
+      "वाइड एंगल लेंस",
+      "टेलीफोटो लेंस",
+      "गंदा या उंगलियों से छुआ गया लेंस",
+      "कोई भी नहीं"
+    ],
+    answer: "गंदा या उंगलियों से छुआ गया लेंस"
+  },
+  {
+    question: "LCD प्रोजेक्टर को बंद करने से पहले क्या करना चाहिए?",
+    options: [
+      "फौरन प्लग निकाल देना",
+      "तुरंत बंद करना",
+      "कूल डाउन होने देना",
+      "बैटरी निकालना"
+    ],
+    answer: "कूल डाउन होने देना"
+  },
+  {
+    question: "कैमरा बैग की सफाई कैसे करनी चाहिए?",
+    options: [
+      "पानी से धोकर",
+      "झाड़ू से",
+      "वैक्यूम क्लीनर से",
+      "ब्रश से"
+    ],
+    answer: "वैक्यूम क्लीनर से"
+  },
+  {
+    question: "LCD प्रोजेक्टर की देखभाल के लिए क्या जरूरी है?",
+    options: [
+      "धूप में रखना",
+      "बिना फिल्टर के चलाना",
+      "धूल और धुएँ से बचाना",
+      "हमेशा चालू रखना"
+    ],
+    answer: "धूल और धुएँ से बचाना"
+  },
+  {
+    question: "कैमरे को सीधे सूर्य की ओर क्यों नहीं रखना चाहिए?",
+    options: [
+      "कैमरा गर्म हो जाता है",
+      "फोटो खराब आती है",
+      "सेंसर को नुकसान हो सकता है",
+      "बैटरी जल्दी खत्म होती है"
+    ],
+    answer: "सेंसर को नुकसान हो सकता है"
+  },
+  {
+    question: "कैमरे की लंबी उम्र के लिए बैटरी कब निकालनी चाहिए?",
+    options: [
+      "जब उपयोग न हो",
+      "जब चार्ज हो रहा हो",
+      "फोटो लेते समय",
+      "हमेशा"
+    ],
+    answer: "जब उपयोग न हो"
+  },
+  {
+    question: "स्मार्ट बोर्ड को किस अन्य नाम से जाना जाता है?",
+    options: [
+      "डिजिटल बोर्ड",
+      "स्लेट बोर्ड",
+      "इंटरएक्टिव व्हाइट बोर्ड",
+      "पेन टैबलेट"
+    ],
+    answer: "इंटरएक्टिव व्हाइट बोर्ड"
+  },
+  {
+    question: "स्मार्ट बोर्ड किस तकनीक पर आधारित होता है?",
+    options: [
+      "सेंसर तकनीक",
+      "ब्लूटूथ तकनीक",
+      "इलेक्ट्रोमैग्नेटिक तकनीक",
+      "वायरलेस तकनीक"
+    ],
+    answer: "इलेक्ट्रोमैग्नेटिक तकनीक"
+  },
+  {
+    question: "स्मार्ट बोर्ड को कंप्यूटर से कैसे जोड़ा जा सकता है?",
+    options: [
+      "केवल HDMI केबल से",
+      "केवल ब्लूटूथ द्वारा",
+      "USB केबल या ब्लूटूथ दोनों के माध्यम से",
+      "केवल वाईफाई से"
+    ],
+    answer: "USB केबल या ब्लूटूथ दोनों के माध्यम से"
+  },
+  {
+    question: "स्मार्ट बोर्ड के संचालन के लिए किस चीज की आवश्यकता होती है?",
+    options: [
+      "टेलीविजन",
+      "प्रिंटर",
+      "कंप्यूटर और मल्टीमीडिया प्रोजेक्टर",
+      "स्कैनर"
+    ],
+    answer: "कंप्यूटर और मल्टीमीडिया प्रोजेक्टर"
+  },
+  {
+    question: "स्मार्ट बोर्ड के लिए प्रयुक्त पेन कैसा होता है?",
+    options: [
+      "रिफिल वाला बॉल पेन",
+      "रिचार्जेबल मैग्नेटिक पेन",
+      "साधारण मार्कर",
+      "ब्लू इंक पेन"
+    ],
+    answer: "रिचार्जेबल मैग्नेटिक पेन"
+  },
+  {
+    question: "इंटरएक्टिव बोर्ड का कौन-सा मोड Microsoft Office फाइल्स के साथ कार्य करता है?",
+    options: [
+      "इंटरएक्टिव मोड",
+      "व्हाइटबोर्ड मोड",
+      "ऑफिस मोड",
+      "मल्टीमीडिया मोड"
+    ],
+    answer: "ऑफिस मोड"
+  },
+  {
+    question: "किस मोड में उपयोगकर्ता कंप्यूटर सॉफ्टवेयर एप्लिकेशन को पेन से नियंत्रित कर सकता है?",
+    options: [
+      "ऑफिस मोड",
+      "एनोटेशन मोड",
+      "व्हाइटबोर्ड मोड",
+      "इंटरएक्टिव मोड"
+    ],
+    answer: "इंटरएक्टिव मोड"
+  },
+  {
+    question: "स्मार्ट बोर्ड का उपयोग करने का एक लाभ क्या है?",
+    options: [
+      "केवल ऑडियो सुनाने के लिए",
+      "बोर्ड को बार-बार मिटाने की जरूरत नहीं",
+      "केवल वीडियो दिखाने के लिए",
+      "केवल गणित पढ़ाने के लिए"
+    ],
+    answer: "बोर्ड को बार-बार मिटाने की जरूरत नहीं"
+  },
+  {
+    question: "किस फ़ॉर्मेट में स्मार्ट बोर्ड पर प्रदर्शित सामग्री को सहेजा जा सकता है?",
+    options: [
+      "DOC",
+      "JPG",
+      "PDF",
+      "HTML"
+    ],
+    answer: "PDF"
+  },
+  {
+    question: "कौन-सा टूल प्रेजेंटेशन के पेजों को व्यवस्थित, हटाने और प्रिंट करने के लिए उपयोग होता है?",
+    options: [
+      "माउस टूल",
+      "फाइल सेवर",
+      "पेज सॉर्टर टूल",
+      "डिलीट टूल"
+    ],
+    answer: "पेज सॉर्टर टूल"
+  },
+  {
+    question: "स्मार्ट बोर्ड के प्रयोग से शिक्षण में कौन-सा लाभ होता है?",
+    options: [
+      "छात्र विचलित रहते हैं",
+      "बोर्ड जल्दी गंदा हो जाता है",
+      "छात्र अधिक रुचि लेते हैं",
+      "इंटरनेट की आवश्यकता नहीं"
+    ],
+    answer: "छात्र अधिक रुचि लेते हैं"
+  }
+  ];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

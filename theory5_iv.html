@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: "Which function is NOT typically used as a multi-cell array formula?",
+    options: [
+      "TRANSPOSE",
+      "TREND",
+      "SUM",
+      "FREQUENCY"
+    ],
+    answer: "SUM"
+  },
+  {
+    question: "When naming an array constant, which Excel tab do you use?",
+    options: [
+      "Data",
+      "Review",
+      "Formulas",
+      "Insert"
+    ],
+    answer: "Formulas"
+  },
+  {
+    question: "What is the main limitation of the basic LOOKUP function in Excel?",
+    options: [
+      "It only works with exact matches",
+      "It requires the lookup column/row to be sorted in ascending order",
+      "It can only search horizontally",
+      "It can handle multiple lookup values"
+    ],
+    answer: "It requires the lookup column/row to be sorted in ascending order"
+  },
+  {
+    question: "Which function is designed specifically for vertical lookup in Excel?",
+    options: [
+      "HLOOKUP",
+      "LOOKUP",
+      "VLOOKUP",
+      "INDEX"
+    ],
+    answer: "VLOOKUP"
+  },
+  {
+    question: "What is a major drawback of VLOOKUP?",
+    options: [
+      "It cannot look to the left of the lookup column",
+      "It only works for sorted data",
+      "It requires complex syntax",
+      "It is slower than LOOKUP"
+    ],
+    answer: "It cannot look to the left of the lookup column"
+  },
+  {
+    question: "Which Excel lookup function searches horizontally in the first row and returns a value from another row?",
+    options: [
+      "VLOOKUP",
+      "LOOKUP",
+      "HLOOKUP",
+      "INDEX"
+    ],
+    answer: "HLOOKUP"
+  },
+  {
+    question: "How does using MATCH with VLOOKUP improve the formula?",
+    options: [
+      "It allows dynamic reference to the return column or row",
+      "It makes the formula easier to write",
+      "It eliminates the need for a lookup value",
+      "It sorts the data automatically"
+    ],
+    answer: "It allows dynamic reference to the return column or row"
+  },
+  {
+    question: "Which formula is known as the most versatile lookup method in Excel?",
+    options: [
+      "VLOOKUP",
+      "LOOKUP",
+      "OFFSET MATCH",
+      "INDEX MATCH"
+    ],
+    answer: "INDEX MATCH"
+  },
+  {
+    question: "What is a key advantage of the INDEX MATCH formula over VLOOKUP?",
+    options: [
+      "It can only search in the first column",
+      "It allows lookup to the left and above the lookup column or row",
+      "It only works with sorted data",
+      "It is slower on large datasets"
+    ],
+    answer: "It allows lookup to the left and above the lookup column or row"
+  },
+  {
+    question: "What is the purpose of the OFFSET function combined with MATCH in lookup formulas?",
+    options: [
+      "To perform dynamic lookups unaffected by row or column insertion/deletion",
+      "To sort the lookup table automatically",
+      "To create simple one-dimensional lookups only",
+      "To replace the need for INDEX and MATCH formulas"
+    ],
+    answer: "To perform dynamic lookups unaffected by row or column insertion/deletion"
+  },
+  {
+    question: "Which of the following lookup formulas is affected by the insertion or deletion of columns or rows?",
+    options: [
+      "INDEX MATCH",
+      "VLOOKUP and HLOOKUP without MATCH",
+      "OFFSET MATCH",
+      "LOOKUP"
+    ],
+    answer: "VLOOKUP and HLOOKUP without MATCH"
+  },
+  {
+    question: "In the INDEX MATCH formula for two-dimensional lookup, what do the two MATCH functions specify?",
+    options: [
+      "The start and end of the lookup table",
+      "The row and column numbers where the value is found",
+      "The lookup values for horizontal and vertical lookups respectively",
+      "The exact and approximate match options"
+    ],
+    answer: "The row and column numbers where the value is found"
+  },
+  {
+    question: "What is the primary purpose of the Windows Registry?",
+    options: [
+      "To store user files and documents",
+      "To act as a hierarchical database for system and application settings",
+      "To replace the hard disk",
+      "To manage internet connections"
+    ],
+    answer: "To act as a hierarchical database for system and application settings"
+  },
+  {
+    question: "Which program is used to browse and edit the Windows Registry?",
+    options: [
+      "regedit.exe",
+      "cmd.exe",
+      "excel.exe",
+      "msconfig.exe"
+    ],
+    answer: "regedit.exe"
+  },
+  {
+    question: "Where are Excel 2007 settings stored in the Registry?",
+    options: [
+      "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Excel",
+      "HKEY_CURRENT_USER\\Software\\Microsoft\\Office.O\\Excel",
+      "HKEY_USERS\\Software\\Microsoft\\Excel",
+      "HKEY_CLASSES_ROOT\\Excel"
+    ],
+    answer: "HKEY_CURRENT_USER\\Software\\Microsoft\\Office.O\\Excel"
+  },
+  {
+    question: "When does Excel update its settings in the Registry?",
+    options: [
+      "Immediately when a setting changes",
+      "When Excel starts",
+      "When Excel closes normally",
+      "Every hour automatically"
+    ],
+    answer: "When Excel closes normally"
+  },
+   {
+    question: "What happens if Excel crashes while running?",
+    options: [
+      "The Registry settings are updated normally",
+      "The Registry settings are not updated",
+      "Excel automatically fixes the Registry",
+      "The Registry settings are deleted"
+    ],
+    answer: "The Registry settings are not updated"
+  },
+  {
+    question: "What is the purpose of exporting the Registry before editing it?",
+    options: [
+      "To delete the Registry safely",
+      "To create a backup so you can restore if something goes wrong",
+      "To speed up the Registry",
+      "To export settings to Excel"
+    ],
+    answer: "To create a backup so you can restore if something goes wrong"
+  },
+  {
+    question: "How can you make Excel show selected cells with a black background instead of gray?",
+    options: [
+      "Change the setting in Excel Options",
+      "Edit the Registry and add a DWORD value named Options6 with decimal value 16",
+      "Use the VLOOKUP function",
+      "Reinstall Excel"
+    ],
+    answer: "Edit the Registry and add a DWORD value named Options6 with decimal value 16"
+  },
+  {
+    question: "Which Registry section holds information about Excel's most recently used files?",
+    options: [
+      "Options",
+      "File MRU",
+      "Add-in Manager",
+      "Security"
+    ],
+    answer: "File MRU"
+  },
+  {
+    question: "What should you do if Excel fails to start due to corrupt Registry keys?",
+    options: [
+      "Delete the entire Excel Registry section so it rebuilds on next start",
+      "Reinstall Windows",
+      "Delete all files from the Documents folder",
+      "Disable macros in Excel"
+    ],
+    answer: "Delete the entire Excel Registry section so it rebuilds on next start"
+  },
+  {
+    question: "What is the risk of editing the Windows Registry?",
+    options: [
+      "It can cause Excel to slow down",
+      "It can cause Windows or applications to stop working properly",
+      "It voids your Windows license",
+      "It will delete your files automatically"
+    ],
+    answer: "It can cause Windows or applications to stop working properly"
+  },
+  {
+    question: "Which shortcut key combination is used to paste copied data in Excel?",
+    options: [
+      "Ctrl+P",
+      "Ctrl+V",
+      "Ctrl+C",
+      "Ctrl+X"
+    ],
+    answer: "Ctrl+V"
+  },
+  {
+    question: "What is the purpose of Conditional Formatting in Excel?",
+    options: [
+      "To validate data entries",
+      "To automate macros",
+      "To visually highlight cells based on criteria",
+      "To create PivotTables"
+    ],
+    answer: "To visually highlight cells based on criteria"
+  },
+  {
+    question: "Which feature in Excel helps to restrict data entry to specific values, like using drop-down lists?",
+    options: [
+      "Data Validation",
+      "Power Query",
+      "Named Ranges",
+      "Array Formulas"
+    ],
+    answer: "Data Validation"
+  },
+  {
+    question: "What is the main use of PivotTables in Excel?",
+    options: [
+      "To automate tasks with macros",
+      "To summarize and analyze large datasets dynamically",
+      "To format cells conditionally",
+      "To create lookup formulas"
+    ],
+    answer: "To summarize and analyze large datasets dynamically"
+  },
+  {
+    question: "When should you prefer using INDEX-MATCH over VLOOKUP?",
+    options: [
+      "When the lookup value is in the leftmost column",
+      "When you need horizontal lookups only",
+      "When the lookup value is NOT in the leftmost column",
+      "When working with small datasets only"
+    ],
+    answer: "When the lookup value is NOT in the leftmost column"
+  },
+  {
+    question: "What benefit do Excel Tables provide over regular data ranges?",
+    options: [
+      "Tables automatically expand when new data is added",
+      "Tables disable sorting and filtering",
+      "Tables cannot be referenced in formulas",
+      "Tables slow down Excel performance"
+    ],
+    answer: "Tables automatically expand when new data is added"
+  },
+  {
+    question: "How do Named Ranges improve formula management?",
+    options: [
+      "They simplify formula readability and reduce errors",
+      "They create macros automatically",
+      "They validate data entry",
+      "They remove duplicates from data"
+    ],
+    answer: "They simplify formula readability and reduce errors"
+  },
+  {
+    question: "What is Power Query primarily used for?",
+    options: [
+      "Creating macros",
+      "Importing, cleaning, and transforming data from multiple sources",
+      "Adding conditional formatting",
+      "Creating array formulas"
+    ],
+    answer: "Importing, cleaning, and transforming data from multiple sources"
+  },
+  {
+    question: "How do macros help in Excel?",
+    options: [
+      "By automating repetitive tasks through recorded actions",
+      "By highlighting important cells",
+      "By validating data entry",
+      "By creating PivotTables"
+    ],
+    answer: "By automating repetitive tasks through recorded actions"
+  },
+  {
+    question: "How do you enter an array formula in Excel?",
+    options: [
+      "Press Enter",
+      "Press Ctrl+Enter",
+      "Press Ctrl+Shift+Enter",
+      "Press Alt+Enter"
+    ],
+    answer: "Press Ctrl+Shift+Enter"
+  },
+  {
+    question: "Which feature allows applying horizontal bars proportional to cell values in conditional formatting?",
+    options: [
+      "Icon Sets",
+      "Data Bars",
+      "Color Scales",
+      "Custom formulas"
+    ],
+    answer: "Data Bars"
+  },
+  {
+    question: "Which of the following is NOT a benefit of using Excel Tables?",
+    options: [
+      "Structured referencing in formulas",
+      "Automatic range expansion",
+      "Static data range size",
+      "Easy sorting and filtering"
+    ],
+    answer: "Static data range size"
+  },
+  {
+    question: "What is the primary purpose of a Pivot Table in Excel?",
+    options: [
+      "To create static charts",
+      "To quickly summarize and analyze large datasets",
+      "To write complex formulas",
+      "To import external data"
+    ],
+    answer: "To quickly summarize and analyze large datasets"
+  },
+  {
+    question: "Which tab in Excel do you use to insert a Pivot Table?",
+    options: [
+      "Home",
+      "Data",
+      "Insert",
+      "Review"
+    ],
+    answer: "Insert"
+  },
+  {
+    question: "When creating a Pivot Table, what does the 'Values' area represent?",
+    options: [
+      "The fields used for filtering data",
+      "The row headers",
+      "The columns to group data by",
+      "The aggregated numerical data like sum or count"
+    ],
+    answer: "The aggregated numerical data like sum or count"
+  },
+  {
+    question: "Which of the following is NOT an area where you can drag fields in a Pivot Table?",
+    options: [
+      "Filters",
+      "Columns",
+      "Rows",
+      "Formulas"
+    ],
+    answer: "Formulas"
+  },
+  {
+    question: "What happens when you insert a Pivot Chart in Excel?",
+    options: [
+      "A new worksheet is always created",
+      "A Pivot Table is automatically created alongside the chart",
+      "The data source is deleted",
+      "The chart becomes static and cannot be changed"
+    ],
+    answer: "A Pivot Table is automatically created alongside the chart"
+  },
+  {
+    question: "Which shortcut key creates a chart from a Pivot Table on a new Chart sheet?",
+    options: [
+      "Alt + F1",
+      "Ctrl + C",
+      "F11",
+      "Ctrl + V"
+    ],
+    answer: "F11"
+  },
+  {
+    question: "In a Pivot Chart, which field area corresponds to the horizontal axis?",
+    options: [
+      "Legend (Series)",
+      "Filters",
+      "Axis (Categories)",
+      "Values"
+    ],
+    answer: "Axis (Categories)"
+  },
+  {
+    question: "How can you change the chart type of an existing Pivot Chart?",
+    options: [
+      "Right-click the chart and select 'Delete'",
+      "Use the Design tab → Change Chart Type",
+      "Use the Home tab → Format Painter",
+      "It is not possible to change chart type once created"
+    ],
+    answer: "Use the Design tab → Change Chart Type"
+  },
+  {
+    question: "What is the benefit of using Filters in a Pivot Table?",
+    options: [
+      "To create calculations",
+      "To sort data alphabetically",
+      "To display or hide certain data dynamically",
+      "To create a new worksheet"
+    ],
+    answer: "To display or hide certain data dynamically"
+  },
+  {
+    question: "To insert a Pivot Table, the data should:",
+    options: [
+      "Contain no blank rows or columns",
+      "Be formatted as a chart",
+      "Have formulas only",
+      "Always be in a separate workbook"
+    ],
+    answer: "Contain no blank rows or columns"
+  },
+  {
+    question: "What is the primary purpose of Conditional Formatting in Excel?",
+    options: [
+      "To sort data",
+      "To automatically highlight cells based on their content",
+      "To create formulas",
+      "To insert charts"
+    ],
+    answer: "To automatically highlight cells based on their content"
+  },
+  {
+    question: "Which Excel tab contains the Conditional Formatting option?",
+    options: [
+      "Insert",
+      "Home",
+      "Data",
+      "Review"
+    ],
+    answer: "Home"
+  },
+  {
+    question: "To highlight cells greater than 80 in the range A1:A10, which option should you choose?",
+    options: [
+      "Highlight Cells Rules → Greater Than",
+      "Top/Bottom Rules → Above Average",
+      "Clear Rules",
+      "New Rule"
+    ],
+    answer: "Highlight Cells Rules → Greater Than"
+  },
+  {
+    question: "What happens when you change the value of a cell that already meets a Conditional Formatting rule?",
+    options: [
+      "The formatting stays the same",
+      "The formatting changes automatically based on the new value",
+      "Excel deletes the value",
+      "The cell moves to the end of the sheet"
+    ],
+    answer: "The formatting changes automatically based on the new value"
+  },
+  {
+    question: "How can you clear conditional formatting from a selected range?",
+    options: [
+      "Delete the worksheet",
+      "Use Home → Conditional Formatting → Clear Rules → Clear Rules from Selected Cells",
+      "Use Insert → Chart",
+      "Use Data → Sort"
+    ],
+    answer: "Use Home → Conditional Formatting → Clear Rules → Clear Rules from Selected Cells"
+  },
+  {
+    question: "Which type of Conditional Formatting rule would you use to highlight cells that are above the average value of a range?",
+    options: [
+      "Highlight Cells Rules → Less Than",
+      "Top/Bottom Rules → Above Average",
+      "Data Bars",
+      "Icon Sets"
+    ],
+    answer: "Top/Bottom Rules → Above Average"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

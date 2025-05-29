@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: "जॉब रोल क्या दर्शाता है?",
+    options: [
+      "A) किसी संगठन का वार्षिक लक्ष्य",
+      "B) संगठन में किसी कर्मचारी द्वारा किए जाने वाले कार्यों का समूह",
+      "C) किसी कर्मचारी का वेतनमान",
+      "D) उपरोक्त में से कोई नहीं"
+    ],
+    answer: "B) संगठन में किसी कर्मचारी द्वारा किए जाने वाले कार्यों का समूह"
+  },
+  {
+    question: "इलेक्ट्रिशियन ट्रेड में \"Electrician General\" का कार्य क्या होता है?",
+    options: [
+      "A) केवल मोटरों की मरम्मत करना",
+      "B) केवल केबल जोड़ना",
+      "C) विद्युत उपकरणों की स्थापना, रखरखाव और मरम्मत करना",
+      "D) केवल घरेलू वायरिंग करना"
+    ],
+    answer: "C) विद्युत उपकरणों की स्थापना, रखरखाव और मरम्मत करना"
+  },
+  {
+    question: "\"लर्निंग आउटकम\" का मुख्य उद्देश्य क्या है?",
+    options: [
+      "A) यह दर्शाता है कि एक विद्यार्थी सीखने की प्रक्रिया पूरी करने के बाद क्या जानता और कर सकता है",
+      "B) यह पाठ्यक्रम की लंबाई निर्धारित करता है",
+      "C) यह शिक्षक की दक्षता को मापने का तरीका है",
+      "D) यह केवल पाठ्यक्रम का नाम है"
+    ],
+    answer: "A) यह दर्शाता है कि एक विद्यार्थी सीखने की प्रक्रिया पूरी करने के बाद क्या जानता और कर सकता है"
+  },
+  {
+    question: "विशिष्ट (Specific) लर्निंग आउटकम का क्या तात्पर्य है?",
+    options: [
+      "A) यह केवल सामान्य ज्ञान प्रदान करता है",
+      "B) यह विशिष्ट ट्रेड (Trade) से संबंधित होता है और निर्धारित समय में प्राप्त किया जा सकता है",
+      "C) यह छात्रों की संख्या बढ़ाने के लिए बनाया गया है",
+      "D) यह एक संगठन की व्यावसायिक नीति होती है"
+    ],
+    answer: "B) यह विशिष्ट ट्रेड (Trade) से संबंधित होता है और निर्धारित समय में प्राप्त किया जा सकता है"
+  },
+  {
+    question: "मूल्यांकन मानदंड क्या दर्शाता है?",
+    options: [
+      "A) छात्रों के प्रदर्शन को पहचानने के लिए मानक",
+      "B) केवल परीक्षा में पूछे जाने वाले प्रश्न",
+      "C) शिक्षकों की पदोन्नति का आधार",
+      "D) पाठ्यक्रम की कठिनाई का स्तर"
+    ],
+    answer: "A) छात्रों के प्रदर्शन को पहचानने के लिए मानक"
+  },
+  {
+    question: "सुरक्षा उपायों के अनुपालन (Safe Working Practices) का प्रमुख उद्देश्य क्या है?",
+    options: [
+      "A) उत्पादन में वृद्धि करना",
+      "B) दुर्घटनाओं को रोकना और सुरक्षित कार्य वातावरण सुनिश्चित करना",
+      "C) बिजली बचाना",
+      "D) मशीनों को तेजी से चलाना"
+    ],
+    answer: "B) दुर्घटनाओं को रोकना और सुरक्षित कार्य वातावरण सुनिश्चित करना"
+  },
+  {
+    question: "\"RLC सर्किट\" में कौन-कौन से घटक शामिल होते हैं?",
+    options: [
+      "A) रेज़िस्टेंस (R), इंडक्टेंस (L), कैपेसिटेंस (C)",
+      "B) केवल बैटरी और बल्ब",
+      "C) मोटर और जनरेटर",
+      "D) केवल इंडक्टेंस और कैपेसिटेंस"
+    ],
+    answer: "A) रेज़िस्टेंस (R), इंडक्टेंस (L), कैपेसिटेंस (C)"
+  },
+  {
+    question: "एक सोलोनॉइड (Solenoid) में धारा के प्रवाह की दिशा बदलने पर क्या होगा?",
+    options: [
+      "A) चुंबकीय क्षेत्र की दिशा नहीं बदलेगी",
+      "B) चुंबकीय क्षेत्र की दिशा बदल जाएगी",
+      "C) सर्किट टूट जाएगा",
+      "D) विद्युत धारा समाप्त हो जाएगी"
+    ],
+    answer: "B) चुंबकीय क्षेत्र की दिशा बदल जाएगी"
+  },
+  {
+    question: "ऊर्जा संरक्षण के लिए सबसे अच्छा तरीका क्या है?",
+    options: [
+      "A) अनुपयोगी उपकरणों को चालू रखना",
+      "B) ऊर्जा दक्ष उपकरणों का उपयोग करना और अपव्यय कम करना",
+      "C) अधिक बिजली खपत करने वाले उपकरणों का उपयोग करना",
+      "D) केवल सौर ऊर्जा का उपयोग करना"
+    ],
+    answer: "B) ऊर्जा दक्ष उपकरणों का उपयोग करना और अपव्यय कम करना"
+  },
+  {
+    question: "वैश्विक तापमान वृद्धि (Global Warming) का मुख्य कारण क्या है?",
+    options: [
+      "A) ऑक्सीजन का अधिक उत्पादन",
+      "B) वनों की कटाई और ग्रीनहाउस गैसों का उत्सर्जन",
+      "C) समुद्रों में जलस्तर का गिरना",
+      "D) सूर्य की किरणों की तीव्रता बढ़ना"
+    ],
+    answer: "B) वनों की कटाई और ग्रीनहाउस गैसों का उत्सर्जन"
+  },
+  {
+    question: "पाठ्यक्रम (Syllabus) क्या होता है?",
+    options: [
+      "A) छात्रों की उपस्थिति सूची",
+      "B) एक विशेष कोर्स में पढ़ाए जाने वाले विषयों की सूची",
+      "C) परीक्षा की उत्तर पुस्तिका",
+      "D) शिक्षकों की समय-सारणी"
+    ],
+    answer: "B) एक विशेष कोर्स में पढ़ाए जाने वाले विषयों की सूची"
+  },
+  {
+    question: "पाठ्यक्रम का मुख्य उद्देश्य क्या होता है?",
+    options: [
+      "A) छात्रों को कठिन विषय पढ़ाना",
+      "B) प्रशिक्षण को सुगठित और प्रभावी बनाना",
+      "C) केवल सैद्धांतिक ज्ञान देना",
+      "D) छात्रों को परीक्षा में पास कराना"
+    ],
+    answer: "B) प्रशिक्षण को सुगठित और प्रभावी बनाना"
+  },
+  {
+    question: "पाठ्यक्रम विश्लेषण क्यों आवश्यक है?",
+    options: [
+      "A) अनावश्यक जानकारी को हटाने के लिए",
+      "B) पाठ्यक्रम को और कठिन बनाने के लिए",
+      "C) शिक्षकों के कार्य को बढ़ाने के लिए",
+      "D) परीक्षा के प्रश्नपत्र बनाने के लिए"
+    ],
+    answer: "A) अनावश्यक जानकारी को हटाने के लिए"
+  },
+  {
+    question: "पाठ्यक्रम को कितने भागों में विभाजित किया जाता है?",
+    options: [
+      "A) 2",
+      "B) 3",
+      "C) 4",
+      "D) 5"
+    ],
+    answer: "B) 3"
+  },
+   {
+    question: "पाठ्यक्रम के पहले भाग में क्या शामिल होता है?",
+    options: [
+      "A) मौलिक प्रशिक्षण",
+      "B) व्यावहारिक प्रशिक्षण",
+      "C) परीक्षा की तैयारी",
+      "D) केवल सैद्धांतिक अध्ययन"
+    ],
+    answer: "A) मौलिक प्रशिक्षण"
+  },
+  {
+    question: "पाठ्यक्रम विश्लेषण का कौन सा चरण पहले आता है?",
+    options: [
+      "A) समय विभाजन",
+      "B) पाठ्यक्रम को समझना",
+      "C) कौशल सूची बनाना",
+      "D) शिक्षण सामग्री तैयार करना"
+    ],
+    answer: "B) पाठ्यक्रम को समझना"
+  },
+  {
+    question: "कौन-सा विश्लेषण विधि पाठ्यक्रम के व्यावसायिक प्रशिक्षण के लिए सबसे उपयुक्त है?",
+    options: [
+      "A) कौशल विश्लेषण विधि",
+      "B) विषय सूची विधि",
+      "C) परीक्षा विधि",
+      "D) रचनात्मक विधि"
+    ],
+    answer: "A) कौशल विश्लेषण विधि"
+  },
+  {
+    question: "पाठ्यक्रम को सरल से जटिल क्रम में रखने का क्या लाभ है?",
+    options: [
+      "A) छात्रों को बेहतर समझने में मदद मिलती है",
+      "B) शिक्षकों को कठिनाई होती है",
+      "C) केवल परीक्षा में अच्छे अंक मिलते हैं",
+      "D) शिक्षण सामग्री की कोई आवश्यकता नहीं होती"
+    ],
+    answer: "A) छात्रों को बेहतर समझने में मदद मिलती है"
+  },
+  {
+    question: "प्रशिक्षण कार्यक्रम को सफल बनाने के लिए कौन-सा सबसे महत्वपूर्ण घटक है?",
+    options: [
+      "A) अच्छा पाठ्यक्रम विश्लेषण",
+      "B) कठिन विषयों की अधिकता",
+      "C) केवल प्रायोगिक प्रशिक्षण",
+      "D) छात्रों की उपस्थिति"
+    ],
+    answer: "A) अच्छा पाठ्यक्रम विश्लेषण"
+  },
+  {
+    question: "पाठ्यक्रम विश्लेषण का अंतिम चरण क्या होता है?",
+    options: [
+      "A) पाठ्यक्रम को समझना",
+      "B) समय विभाजन और अनुसूची बनाना",
+      "C) प्रशिक्षण सामग्री एकत्र करना",
+      "D) परीक्षा का आयोजन"
+    ],
+    answer: "B) समय विभाजन और अनुसूची बनाना"
+  },
+  {
+    question: "ADDIE मॉडल का पूर्ण रूप क्या है?",
+    options: [
+      "A) Analysis, Design, Development, Implementation, Evaluation",
+      "B) Assessment, Design, Development, Implementation, Execution",
+      "C) Analyze, Decide, Develop, Implement, Execute",
+      "D) Apply, Design, Deliver, Implement, Evaluate"
+    ],
+    answer: "A) Analysis, Design, Development, Implementation, Evaluation"
+  },
+  {
+    question: "ADDIE मॉडल का मुख्य उद्देश्य क्या है?",
+    options: [
+      "A) प्रशिक्षण और निर्देशात्मक डिजाइन को सुव्यवस्थित करना",
+      "B) केवल शिक्षकों के लिए एक गाइड बनाना",
+      "C) छात्रों की परीक्षा लेने के लिए एक ढांचा तैयार करना",
+      "D) केवल ऑनलाइन पाठ्यक्रम बनाने के लिए उपयोग किया जाता है"
+    ],
+    answer: "A) प्रशिक्षण और निर्देशात्मक डिजाइन को सुव्यवस्थित करना"
+  },
+  {
+    question: "ADDIE मॉडल के कितने चरण होते हैं?",
+    options: [
+      "A) 3",
+      "B) 4",
+      "C) 5",
+      "D) 6"
+    ],
+    answer: "C) 5"
+  },
+  {
+    question: "ADDIE मॉडल का पहला चरण कौन-सा है?",
+    options: [
+      "A) Design",
+      "B) Analysis",
+      "C) Development",
+      "D) Evaluation"
+    ],
+    answer: "B) Analysis"
+  },
+  {
+    question: "Analysis चरण में मुख्य रूप से क्या किया जाता है?",
+    options: [
+      "A) सामग्री तैयार करना",
+      "B) पाठ्यक्रम को डिज़ाइन करना",
+      "C) सीखने की समस्याओं और उद्देश्यों को स्पष्ट करना",
+      "D) प्रशिक्षण का मूल्यांकन करना"
+    ],
+    answer: "C) सीखने की समस्याओं और उद्देश्यों को स्पष्ट करना"
+  },
+  {
+    question: "Design चरण में क्या किया जाता है?",
+    options: [
+      "A) शिक्षण सामग्री का निर्माण",
+      "B) शिक्षकों को प्रशिक्षित करना",
+      "C) परीक्षण और मूल्यांकन के तरीके निर्धारित करना",
+      "D) ऑनलाइन पाठ्यक्रम विकसित करना"
+    ],
+    answer: "C) परीक्षण और मूल्यांकन के तरीके निर्धारित करना"
+  },
+  {
+    question: "Development चरण में क्या किया जाता है?",
+    options: [
+      "A) कोर्स सामग्री का निर्माण और एकत्रीकरण",
+      "B) छात्रों को प्रशिक्षित करना",
+      "C) शिक्षण सामग्री को लागू करना",
+      "D) पाठ्यक्रम की समीक्षा करना"
+    ],
+    answer: "A) कोर्स सामग्री का निर्माण और एकत्रीकरण"
+  },
+  {
+    question: "Implementation चरण में मुख्य रूप से क्या किया जाता है?",
+    options: [
+      "A) पाठ्यक्रम को लागू करना और प्रशिक्षण देना",
+      "B) शिक्षकों के लिए मूल्यांकन करना",
+      "C) ऑनलाइन प्लेटफॉर्म का चयन करना",
+      "D) नई तकनीकों को विकसित करना"
+    ],
+    answer: "A) पाठ्यक्रम को लागू करना और प्रशिक्षण देना"
+  },
+  {
+    question: "Evaluation चरण के कितने प्रकार होते हैं?",
+    options: [
+      "A) 1",
+      "B) 2",
+      "C) 3",
+      "D) 4"
+    ],
+    answer: "B) 2 (Formative और Summative)"
+  },
+  {
+    question: "Summative मूल्यांकन का उद्देश्य क्या है?",
+    options: [
+      "A) प्रत्येक चरण का मूल्यांकन करना",
+      "B) अंतिम परिणाम का मूल्यांकन करना",
+      "C) शिक्षकों को प्रशिक्षित करना",
+      "D) केवल पाठ्यक्रम सामग्री की समीक्षा करना"
+    ],
+    answer: "B) अंतिम परिणाम का मूल्यांकन करना"
+  },
+  {
+    question: "ADDIE मॉडल को मुख्य रूप से किस क्षेत्र में उपयोग किया जाता है?",
+    options: [
+      "A) इंजीनियरिंग",
+      "B) शिक्षा और प्रशिक्षण",
+      "C) कृषि",
+      "D) चिकित्सा"
+    ],
+    answer: "B) शिक्षा और प्रशिक्षण"
+  },
+  {
+    question: "Analysis चरण में कौन-सा प्रश्न पूछा जाता है?",
+    options: [
+      "A) हम किस तरह की सामग्री तैयार करेंगे?",
+      "B) छात्रों को कौन-सा कौशल सिखाया जाना चाहिए?",
+      "C) पाठ्यक्रम को कैसे लागू किया जाएगा?",
+      "D) ऑनलाइन शिक्षण सामग्री कौन बनाएगा?"
+    ],
+    answer: "B) छात्रों को कौन-सा कौशल सिखाया जाना चाहिए?"
+  },
+  {
+    question: "ADDIE मॉडल किस तरह की योजना के लिए उपयुक्त है?",
+    options: [
+      "A) यादृच्छिक (Random)",
+      "B) अव्यवस्थित (Unorganized)",
+      "C) क्रमबद्ध और सुव्यवस्थित (Structured and Systematic)",
+      "D) आपातकालीन (Emergency)"
+    ],
+    answer: "C) क्रमबद्ध और सुव्यवस्थित (Structured and Systematic)"
+  },
+  {
+    question: "Kirkpatrick’s Four Levels of Learning Evaluation किस चरण में उपयोग किए जाते हैं?",
+    options: [
+      "A) Analysis",
+      "B) Design",
+      "C) Implementation",
+      "D) Evaluation"
+    ],
+    answer: "D) Evaluation"
+  },
+  {
+    question: "ADDIE मॉडल का कौन-सा चरण सीखने की बाधाओं और सीमाओं की पहचान करने में मदद करता है?",
+    options: [
+      "A) Analysis",
+      "B) Design",
+      "C) Development",
+      "D) Evaluation"
+    ],
+    answer: "A) Analysis"
+  }
+  ];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

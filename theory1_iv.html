@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+   {
+    question: "Link-Level Design का मुख्य उद्देश्य क्या है?",
+    options: [
+      "केवल हार्डवेयर को डिज़ाइन करना",
+      "ट्रांसमीटर और रिसीवर के बीच संचार को अनुकूलित करना",
+      "इंटरनेट स्पीड को सीमित करना",
+      "केवल नेटवर्क मॉनिटरिंग"
+    ],
+    answer: "ट्रांसमीटर और रिसीवर के बीच संचार को अनुकूलित करना"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा डेटा मॉड्यूलेशन तकनीक का एक उदाहरण है?",
+    options: [
+      "FDMA",
+      "QAM (Quadrature Amplitude Modulation)",
+      "TDMA",
+      "CSMA"
+    ],
+    answer: "QAM (Quadrature Amplitude Modulation)"
+  },
+  {
+    question: "FDMA (Frequency Division Multiple Access) का उपयोग कैसे किया जाता है?",
+    options: [
+      "समय के अनुसार चैनल विभाजित करता है",
+      "विभिन्न फ्रीक्वेंसी बैंड में चैनल विभाजित करता है",
+      "सभी डिवाइसेस को एक ही कोड देता है",
+      "केवल मोबाइल नेटवर्क में उपयोग होता है"
+    ],
+    answer: "विभिन्न फ्रीक्वेंसी बैंड में चैनल विभाजित करता है"
+  },
+  {
+    question: "CSMA का उपयोग किस नेटवर्क तकनीक में किया जाता है?",
+    options: [
+      "Wi-Fi",
+      "फाइबर ऑप्टिक संचार",
+      "सैटेलाइट संचार",
+      "ब्लूटूथ"
+    ],
+    answer: "Wi-Fi"
+  },
+  {
+    question: "Wi-Fi का कौन सा IEEE मानक वाई-फाई 6 के रूप में जाना जाता है?",
+    options: [
+      "IEEE 802.11g",
+      "IEEE 802.11n",
+      "IEEE 802.11ac",
+      "IEEE 802.11ax"
+    ],
+    answer: "IEEE 802.11ax"
+  },
+  {
+    question: "कौन सा वायरलेस स्टैंडर्ड मोबाइल नेटवर्क में उपयोग किया जाता है?",
+    options: [
+      "IEEE 802.11",
+      "3GPP LTE",
+      "IEEE 802.15.4",
+      "NFC"
+    ],
+    answer: "3GPP LTE"
+  },
+  {
+    question: "ब्लूटूथ तकनीक का उपयोग मुख्य रूप से किसमें किया जाता है?",
+    options: [
+      "हाई-स्पीड इंटरनेट ब्रॉडबैंड कनेक्शन",
+      "शॉर्ट-रेंज डिवाइस कनेक्शन",
+      "मोबाइल नेटवर्क ट्रांसमिशन",
+      "केवल वाई-फाई नेटवर्क के साथ"
+    ],
+    answer: "शॉर्ट-रेंज डिवाइस कनेक्शन"
+  },
+  {
+    question: "NFC (Near Field Communication) का उपयोग किसमें किया जाता है?",
+    options: [
+      "लंबी दूरी के वायरलेस कनेक्शन के लिए",
+      "कॉन्टैक्टलेस पेमेंट और डेटा एक्सचेंज के लिए",
+      "इंटरनेट ट्रांसमिशन बढ़ाने के लिए",
+      "केवल मोबाइल कॉलिंग के लिए"
+    ],
+    answer: "कॉन्टैक्टलेस पेमेंट और डेटा एक्सचेंज के लिए"
+  },
+
+  // ऑप्टिकल नेटवर्क, क्रॉस कनेक्ट्स और LANs से संबंधित MCQs
+  {
+    question: "ऑप्टिकल नेटवर्क क्या होते हैं?",
+    options: [
+      "वे नेटवर्क जो केवल तांबे की केबल का उपयोग करते हैं",
+      "वे नेटवर्क जो रेडियो तरंगों का उपयोग करते हैं",
+      "वे नेटवर्क जो ऑप्टिकल फाइबर के माध्यम से डेटा ट्रांसमिट करते हैं",
+      "वे नेटवर्क जो केवल सैटेलाइट कम्युनिकेशन का उपयोग करते हैं"
+    ],
+    answer: "वे नेटवर्क जो ऑप्टिकल फाइबर के माध्यम से डेटा ट्रांसमिट करते हैं"
+  },
+  {
+    question: "ऑप्टिकल नेटवर्क का मुख्य लाभ क्या है?",
+    options: [
+      "उच्च डेटा दर",
+      "कम सिग्नल लॉस",
+      "इलेक्ट्रोमैग्नेटिक इंटरफेरेंस से सुरक्षा",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "ऑप्टिकल नेटवर्क में डेटा किस रूप में ट्रांसमिट किया जाता है?",
+    options: [
+      "विद्युत संकेतों के रूप में",
+      "ध्वनि तरंगों के रूप में",
+      "प्रकाश संकेतों के रूप में",
+      "रेडियो तरंगों के रूप में"
+    ],
+    answer: "प्रकाश संकेतों के रूप में"
+  },
+  {
+    question: "ऑप्टिकल फाइबर के मुख्य भाग कौन-कौन से होते हैं?",
+    options: [
+      "कोर और क्लैडिंग",
+      "केवल तांबे की तार",
+      "केवल प्लास्टिक कोटिंग",
+      "उपरोक्त में से कोई नहीं"
+    ],
+    answer: "कोर और क्लैडिंग"
+  }, {
+    question: "5. ऑप्टिकल नेटवर्क में WDM (Wavelength Division Multiplexing) का उपयोग क्यों किया जाता है?",
+    options: [
+      "डेटा एन्क्रिप्शन के लिए",
+      "एक ही फाइबर पर कई वेवलेंथ पर डेटा ट्रांसमिट करने के लिए",
+      "नेटवर्क स्लोडाउन के लिए",
+      "केवल टेलीफोन संचार के लिए"
+    ],
+    answer: "एक ही फाइबर पर कई वेवलेंथ पर डेटा ट्रांसमिट करने के लिए"
+  },
+  {
+    question: "6. क्रॉस कनेक्ट्स क्या होते हैं?",
+    options: [
+      "दो या अधिक संचार चैनलों को जोड़ने का एक तरीका",
+      "केवल वाई-फाई सिग्नल बढ़ाने के लिए",
+      "केवल टेलीफोन नेटवर्क में उपयोग किए जाने वाले उपकरण",
+      "एक प्रकार का इंटरनेट ब्राउज़र"
+    ],
+    answer: "दो या अधिक संचार चैनलों को जोड़ने का एक तरीका"
+  },
+  {
+    question: "7. निम्नलिखित में से कौन सा क्रॉस कनेक्ट का प्रकार नहीं है?",
+    options: [
+      "फिजिकल क्रॉस कनेक्ट",
+      "लॉजिकल क्रॉस कनेक्ट",
+      "वायरलेस क्रॉस कनेक्ट",
+      "इनमें से कोई नहीं"
+    ],
+    answer: "वायरलेस क्रॉस कनेक्ट"
+  },
+  {
+    question: "8. LAN (Local Area Network) किस लिए उपयोग किया जाता है?",
+    options: [
+      "केवल लंबी दूरी के नेटवर्किंग के लिए",
+      "छोटे भौगोलिक क्षेत्र में डिवाइसेस को जोड़ने के लिए",
+      "केवल मोबाइल नेटवर्किंग के लिए",
+      "केवल इंटरनेट एक्सेस के लिए"
+    ],
+    answer: "छोटे भौगोलिक क्षेत्र में डिवाइसेस को जोड़ने के लिए"
+  },
+  {
+    question: "9. LAN में सबसे आम नेटवर्किंग तकनीक कौन सी है?",
+    options: [
+      "Ethernet",
+      "Bluetooth",
+      "Wi-Fi",
+      "5G"
+    ],
+    answer: "Ethernet"
+  },
+  {
+    question: "10. ऑप्टिकल नेटवर्क को किस प्रमुख क्षेत्र में उपयोग किया जाता है?",
+    options: [
+      "डेटा सेंटर",
+      "टेलीफोन संचार",
+      "केबल टेलीविजन (CATV)",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+
+  // VoIP और मल्टीमीडिया नेटवर्क MCQs
+  {
+    question: " VoIP (Voice over IP) क्या है?",
+    options: [
+      "एक पारंपरिक टेलीफोन सेवा",
+      "एक ऐसी तकनीक जो इंटरनेट पर वॉइस कम्युनिकेशन को सक्षम बनाती है",
+      "केवल वीडियो कॉलिंग के लिए उपयोग किया जाने वाला सिस्टम",
+      "केवल रेडियो कम्युनिकेशन के लिए उपयोग किया जाने वाला सिस्टम"
+    ],
+    answer: "एक ऐसी तकनीक जो इंटरनेट पर वॉइस कम्युनिकेशन को सक्षम बनाती है"
+  },
+  {
+    question: " VoIP में वॉयस सिग्नल को किस रूप में ट्रांसमिट किया जाता है?",
+    options: [
+      "एनालॉग सिग्नल के रूप में",
+      "डिजिटल डेटा पैकेट के रूप में",
+      "रेडियो तरंगों के रूप में",
+      "मॉर्स कोड के रूप में"
+    ],
+    answer: "डिजिटल डेटा पैकेट के रूप में"
+  },
+  {
+    question: " VoIP का मुख्य लाभ क्या है?",
+    options: [
+      "उच्च लागत",
+      "पारंपरिक टेलीफोन से सीमित कनेक्टिविटी",
+      "कम लागत और अधिक सुविधाएँ",
+      "केवल ऑफिस उपयोग के लिए सीमित"
+    ],
+    answer: "कम लागत और अधिक सुविधाएँ"
+  },
+  {
+    question: " VoIP के कौन-कौन से फीचर्स होते हैं?",
+    options: [
+      "कॉल फॉरवर्डिंग",
+      "वॉयस मेल",
+      "वीडियो कॉलिंग",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "5. निम्नलिखित में से कौन सा VoIP में उपयोग होने वाला एक प्रोटोकॉल है?",
+    options: [
+      "HTTP",
+      "RTP (Real-Time Transport Protocol)",
+      "FTP",
+      "SMTP"
+    ],
+    answer: "RTP (Real-Time Transport Protocol)"
+  },
+  {
+    question: "6. मल्टीमीडिया नेटवर्क क्या होते हैं?",
+    options: [
+      "केवल टेक्स्ट मैसेजिंग को सपोर्ट करने वाले नेटवर्क",
+      "केवल टीवी ब्रॉडकास्टिंग के लिए उपयोग किए जाने वाले नेटवर्क",
+      "जो विभिन्न प्रकार के मल्टीमीडिया डेटा (ऑडियो, वीडियो, टेक्स्ट, इमेज) को ट्रांसमिट करते हैं",
+      "केवल पब्लिक टेलीफोन नेटवर्क"
+    ],
+    answer: "जो विभिन्न प्रकार के मल्टीमीडिया डेटा (ऑडियो, वीडियो, टेक्स्ट, इमेज) को ट्रांसमिट करते हैं"
+  },
+  {
+    question: "7. मल्टीमीडिया नेटवर्क में QoS (Quality of Service) का क्या कार्य है?",
+    options: [
+      "नेटवर्क सुरक्षा को बढ़ाना",
+      "नेटवर्क में केवल टेक्स्ट मैसेज ट्रांसमिट करना",
+      "नेटवर्क में ऑडियो और वीडियो ट्रैफिक को प्राथमिकता देना",
+      "नेटवर्क में बैंडविड्थ को सीमित करना"
+    ],
+    answer: "नेटवर्क में ऑडियो और वीडियो ट्रैफिक को प्राथमिकता देना"
+  },
+  {
+    question: "8. VoIP और मल्टीमीडिया नेटवर्क को एक साथ कैसे उपयोग किया जाता है?",
+    options: [
+      "VoIP केवल टेक्स्ट संदेशों के लिए उपयोग किया जाता है",
+      "VoIP और मल्टीमीडिया नेटवर्क वीडियो कॉलिंग, वॉयस कॉलिंग और अन्य सेवाओं को एक साथ सक्षम करते हैं",
+      "VoIP का मल्टीमीडिया नेटवर्क से कोई संबंध नहीं है",
+      "VoIP केवल इंटरनेट ब्राउज़िंग के लिए उपयोग किया जाता है"
+    ],
+    answer: "VoIP और मल्टीमीडिया नेटवर्क वीडियो कॉलिंग, वॉयस कॉलिंग और अन्य सेवाओं को एक साथ सक्षम करते हैं"
+  },
+  {
+    question: "9. मल्टीमीडिया नेटवर्क में डेटा ट्रांसमिशन को ऑप्टिमाइज़ करने के लिए कौन सा तरीका उपयोग किया जाता है?",
+    options: [
+      "मल्टीमीडिया डेटा को छोटे पैकेट्स में विभाजित किया जाता है",
+      "डेटा को केवल एक बार ट्रांसमिट किया जाता है",
+      "डेटा को बिना किसी एन्क्रिप्शन के भेजा जाता है",
+      "केवल टेक्स्ट मैसेज ट्रांसमिट किए जाते हैं"
+    ],
+    answer: "मल्टीमीडिया डेटा को छोटे पैकेट्स में विभाजित किया जाता है"
+  },
+  {
+    question: "10. VPN (Virtual Private Network) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "डेटा एन्क्रिप्शन और सुरक्षित संचार प्रदान करना",
+      "इंटरनेट स्पीड को धीमा करना",
+      "केवल मल्टीमीडिया कंटेंट स्ट्रीमिंग को ब्लॉक करना",
+      "किसी भी नेटवर्क से ट्रैफिक को अनफिल्टर करना"
+    ],
+    answer: "डेटा एन्क्रिप्शन और सुरक्षित संचार प्रदान करना"
+  },
+
+  // VPN और DHCP MCQs
+  {
+    question: " VPN (Virtual Private Network) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "डेटा को सार्वजनिक रूप से साझा करना",
+      "नेटवर्क को धीमा करना",
+      "सुरक्षित और गुप्त रूप से इंटरनेट कनेक्शन प्रदान करना",
+      "केवल LAN नेटवर्क के लिए उपयोग करना"
+    ],
+    answer: "सुरक्षित और गुप्त रूप से इंटरनेट कनेक्शन प्रदान करना"
+  },
+  {
+    question: " VPN उपयोगकर्ता की गोपनीयता कैसे बनाए रखता है?",
+    options: [
+      "डेटा को एन्क्रिप्ट करके और IP एड्रेस को छिपाकर",
+      "नेटवर्क ट्रैफिक को धीमा करके",
+      "केवल पासवर्ड से सुरक्षा देकर",
+      "अन्य नेटवर्क से पूरी तरह से डिस्कनेक्ट करके"
+    ],
+    answer: "डेटा को एन्क्रिप्ट करके और IP एड्रेस को छिपाकर"
+  },
+  {
+    question: " निम्नलिखित में से कौन सा VPN का उपयोग करने का एक लाभ नहीं है?",
+    options: [
+      "भू-प्रतिबंधों (Geo-restrictions) को बायपास करना",
+      "हाई-स्पीड डेटा ट्रांसफर सुनिश्चित करना",
+      "ऑनलाइन गतिविधियों को सुरक्षित बनाना",
+      "डेटा पैकेट्स को बिना एन्क्रिप्शन के ट्रांसमिट करना"
+    ],
+    answer: "डेटा पैकेट्स को बिना एन्क्रिप्शन के ट्रांसमिट करना"
+  },
+   {
+    question: " निम्नलिखित में से कौन सा VPN का एक प्रकार नहीं है?",
+    options: [
+      "Remote-Access VPN",
+      "Site-to-Site VPN",
+      "Local VPN",
+      "Mobile VPN"
+    ],
+    answer: "Local VPN"
+  },
+  {
+    question: " DHCP (Dynamic Host Configuration Protocol) का मुख्य कार्य क्या है?",
+    options: [
+      "IP एड्रेस और अन्य नेटवर्क कॉन्फ़िगरेशन सेटिंग्स को स्वचालित रूप से असाइन करना",
+      "इंटरनेट कनेक्शन को धीमा करना",
+      "केवल मैन्युअल रूप से IP एड्रेस सेट करना",
+      "डेटा पैकेट्स को एन्क्रिप्ट करना"
+    ],
+    answer: "IP एड्रेस और अन्य नेटवर्क कॉन्फ़िगरेशन सेटिंग्स को स्वचालित रूप से असाइन करना"
+  },
+  {
+    question: "6. DHCP सर्वर किस प्रक्रिया के माध्यम से क्लाइंट को IP एड्रेस प्रदान करता है?",
+    options: [
+      "TCP 3-way हैंडशेक",
+      "DORA प्रक्रिया (Discover, Offer, Request, Acknowledge)",
+      "NAT (Network Address Translation)",
+      "DNS Resolution"
+    ],
+    answer: "DORA प्रक्रिया (Discover, Offer, Request, Acknowledge)"
+  },
+  {
+    question: "7. DORA प्रक्रिया में पहला चरण कौन सा है?",
+    options: [
+      "Discover",
+      "Offer",
+      "Request",
+      "Acknowledge"
+    ],
+    answer: "Discover"
+  },
+  {
+    question: "8. DHCP सर्वर का उपयोग किस प्रकार के नेटवर्क में किया जाता है?",
+    options: [
+      "केवल LAN में",
+      "केवल WAN में",
+      "केवल VPN में",
+      "LAN और WAN दोनों में"
+    ],
+    answer: "LAN और WAN दोनों में"
+  },
+  {
+    question: "9. DHCP में IP एड्रेस का ‘लीज’ (Lease) क्या दर्शाता है?",
+    options: [
+      "स्थायी रूप से असाइन किया गया IP एड्रेस",
+      "एक निश्चित समय के लिए असाइन किया गया IP एड्रेस",
+      "सार्वजनिक रूप से उपलब्ध IP एड्रेस",
+      "उपयोगकर्ता द्वारा मैन्युअल रूप से सेट किया गया IP एड्रेस"
+    ],
+    answer: "एक निश्चित समय के लिए असाइन किया गया IP एड्रेस"
+  },
+  {
+    question: "10. DHCP का कौन सा लाभ नहीं है?",
+    options: [
+      "नेटवर्क एडमिनिस्ट्रेशन को आसान बनाना",
+      "नेटवर्क उपकरणों को स्वचालित रूप से IP एड्रेस देना",
+      "IP एड्रेस की मैन्युअल कॉन्फ़िगरेशन को अनिवार्य बनाना",
+      "IP एड्रेस संघर्ष (conflicts) को कम करना"
+    ],
+    answer: "IP एड्रेस की मैन्युअल कॉन्फ़िगरेशन को अनिवार्य बनाना"
+  },
+  // नेटवर्क सुरक्षा MCQs
+  {
+    question: " नेटवर्क अटैक कितने प्रकार के होते हैं?",
+    options: [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    answer: "2"
+  },
+  {
+    question:"निम्नलिखित में से कौन सा Active Attack है?",
+    options: [
+      "ईव्सड्रॉपिंग (Eavesdropping)",
+      "ट्रैफिक एनालिसिस (Traffic Analysis)",
+      "स्पूफिंग (Spoofing)",
+      "पैकेट स्निफिंग (Packet Sniffing)"
+    ],
+    answer: "स्पूफिंग (Spoofing)"
+  },
+  {
+    question: " Passive Attack का मुख्य उद्देश्य क्या होता है?",
+    options: [
+      "डेटा को संशोधित करना",
+      "डेटा चोरी करना और निगरानी करना",
+      "सिस्टम को नष्ट करना",
+      "सर्वर को क्रैश करना"
+    ],
+    answer: "डेटा चोरी करना और निगरानी करना"
+  },
+  {
+    question: " निम्नलिखित में से कौन सा Authentication का उदाहरण है?",
+    options: [
+      "पासवर्ड (Password)",
+      "बायोमेट्रिक स्कैन (Biometric Scan)",
+      "स्मार्ट कार्ड (Smart Card)",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "5. मल्टी-फैक्टर ऑथेंटिकेशन (MFA) में कितने फैक्टर्स का उपयोग किया जाता है?",
+    options: [
+      "1",
+      "2 या अधिक",
+      "4",
+      "5"
+    ],
+    answer: "2 या अधिक"
+  },
+  {
+    question: "6. डिजिटल सिग्नेचर (Digital Signature) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "डेटा को एन्क्रिप्ट करना",
+      "डेटा की सत्यता (Authenticity) और अखंडता (Integrity) को बनाए रखना",
+      "पासवर्ड स्टोर करना",
+      "नेटवर्क ट्रैफिक मॉनिटर करना"
+    ],
+    answer: "डेटा की सत्यता (Authenticity) और अखंडता (Integrity) को बनाए रखना"
+  },
+  {
+    question: "7. Brute Force Attack का उद्देश्य क्या है?",
+    options: [
+      "नेटवर्क को बंद करना",
+      "पासवर्ड का अनुमान लगाना",
+      "वायरस फैलाना",
+      "सर्वर को क्रैश करना"
+    ],
+    answer: "पासवर्ड का अनुमान लगाना"
+  },
+  {
+    question: "8. निम्नलिखित में से कौन सा Malware Attack नहीं है?",
+    options: [
+      "वायरस (Virus)",
+      "वर्म (Worm)",
+      "ट्रोजन हॉर्स (Trojan Horse)",
+      "फायरवॉल (Firewall)"
+    ],
+    answer: "फायरवॉल (Firewall)"
+  },
+  {
+    question: "9. Phishing Attack का उद्देश्य क्या है?",
+    options: [
+      "हार्डवेयर नष्ट करना",
+      "सिस्टम क्रैश करना",
+      "उपयोगकर्ताओं को धोखा देकर संवेदनशील जानकारी प्राप्त करना",
+      "नेटवर्क की स्पीड बढ़ाना"
+    ],
+    answer: "उपयोगकर्ताओं को धोखा देकर संवेदनशील जानकारी प्राप्त करना"
+  },
+  {
+    question: "10. एन्क्रिप्शन (Encryption) का क्या उपयोग है?",
+    options: [
+      "डेटा को सुरक्षित रखना",
+      "डेटा को तेज़ी से ट्रांसमिट करना",
+      "नेटवर्क स्पीड बढ़ाना",
+      "पासवर्ड बदलना"
+    ],
+    answer: "डेटा को सुरक्षित रखना"
+  },
+    {
+    question: " निम्नलिखित में से कौन सा सही मेल है?",
+    options: [
+      "AES - असममित एन्क्रिप्शन (Asymmetric Encryption)",
+      "RSA - असममित एन्क्रिप्शन (Asymmetric Encryption)",
+      "DES - असममित एन्क्रिप्शन (Asymmetric Encryption)",
+      "SHA - डेटा एन्क्रिप्शन"
+    ],
+    answer: "RSA - असममित एन्क्रिप्शन (Asymmetric Encryption)"
+  },
+  {
+    question: " निम्नलिखित में से कौन सा सिक्योरिटी मैकेनिज्म (Security Mechanism) नहीं है?",
+    options: [
+      "फायरवॉल (Firewall)",
+      "एंटीवायरस (Antivirus)",
+      "स्पूफिंग (Spoofing)",
+      "मल्टी-फैक्टर ऑथेंटिकेशन (MFA)"
+    ],
+    answer: "स्पूफिंग (Spoofing)"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

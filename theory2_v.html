@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+    {
+    question: "SQL में INDEX का उपयोग किसलिए किया जाता है?",
+    options: [
+      "डेटा को डिलीट करने के लिए",
+      "डेटा को तेजी से खोजने के लिए",
+      "डेटा को एनक्रिप्ट करने के लिए",
+      "डेटा को अस्थायी रूप से स्टोर करने के लिए"
+    ],
+    answer: "डेटा को तेजी से खोजने के लिए"
+  },
+  {
+    question: "SQL में क्लस्टर्ड इंडेक्स का क्या कार्य है?",
+    options: [
+      "डेटा को किसी अलग स्थान पर स्टोर करता है",
+      "डेटा को फिजिकल ऑर्डर में स्टोर करता है",
+      "डेटा को एन्क्रिप्ट करता है",
+      "डेटा को अस्थायी रूप से स्टोर करता है"
+    ],
+    answer: "डेटा को फिजिकल ऑर्डर में स्टोर करता है"
+  },
+  {
+    question: "नॉन-क्लस्टर्ड इंडेक्स किस प्रकार काम करता है?",
+    options: [
+      "डेटा को फिजिकल ऑर्डर में स्टोर करता है",
+      "डेटा को मुख्य टेबल से अलग स्टोर करता है और एड्रेस मैपिंग का उपयोग करता है",
+      "केवल प्राइमरी कीज़ के लिए काम करता है",
+      "डेटा को ऑटोमैटिकली डिलीट करता है"
+    ],
+    answer: "डेटा को मुख्य टेबल से अलग स्टोर करता है और एड्रेस मैपिंग का उपयोग करता है"
+  },
+  {
+    question: "SQL में STORED PROCEDURE क्या है?",
+    options: [
+      "एक प्री-डिफाइंड SQL क्वेरी का समूह",
+      "एक प्रकार का इंडेक्स",
+      "एक प्रकार का डेटा टाइप",
+      "एक प्रकार की टेबल"
+    ],
+    answer: "एक प्री-डिफाइंड SQL क्वेरी का समूह"
+  },
+  {
+    question: "स्टोर्ड प्रोसीजर को चलाने के लिए MySQL में कौन सा कमांड उपयोग किया जाता है?",
+    options: [
+      "EXEC GetEmployee(123);",
+      "RUN GetEmployee(123);",
+      "CALL GetEmployee(123);",
+      "START GetEmployee(123);"
+    ],
+    answer: "CALL GetEmployee(123);"
+  },
+  {
+    question: "SQL में PRIMARY KEY का मुख्य कार्य क्या है?",
+    options: [
+      "डुप्लिकेट डेटा को स्टोर करना",
+      "डेटा को एनक्रिप्ट करना",
+      "प्रत्येक पंक्ति की पहचान सुनिश्चित करना",
+      "डेटा को अस्थायी रूप से स्टोर करना"
+    ],
+    answer: "प्रत्येक पंक्ति की पहचान सुनिश्चित करना"
+  },
+  {
+    question: "स्टोर्ड प्रोसीजर को हटाने के लिए कौन सा SQL स्टेटमेंट उपयोग किया जाता है?",
+    options: [
+      "DELETE PROCEDURE",
+      "DROP PROCEDURE",
+      "REMOVE PROCEDURE",
+      "TRUNCATE PROCEDURE"
+    ],
+    answer: "DROP PROCEDURE"
+  },
+  {
+    question: "HAVING क्लॉज का उपयोग कब किया जाता है?",
+    options: [
+      "WHERE क्लॉज के साथ",
+      "GROUP BY क्लॉज के साथ",
+      "ORDER BY क्लॉज के साथ",
+      "INSERT स्टेटमेंट के साथ"
+    ],
+    answer: "GROUP BY क्लॉज के साथ"
+  },
+  {
+    question: "SQL में DISTINCT का उपयोग किसलिए किया जाता है?",
+    options: [
+      "NULL मान हटाने के लिए",
+      "डुप्लिकेट मानों को हटाने के लिए",
+      "डेटा को सॉर्ट करने के लिए",
+      "डेटा को अपडेट करने के लिए"
+    ],
+    answer: "डुप्लिकेट मानों को हटाने के लिए"
+  },
+  {
+    question: "INDEX का उपयोग करने से क्या लाभ होता है?",
+    options: [
+      "क्वेरी की स्पीड बढ़ जाती है",
+      "डेटा स्टोरेज कम हो जाता है",
+      "टेबल में NULL मान हटा दिए जाते हैं",
+      "टेबल ऑटोमैटिकली अपडेट हो जाती है"
+    ],
+    answer: "क्वेरी की स्पीड बढ़ जाती है"
+  },
+  {
+    question: "Stored Procedure का मुख्य उद्देश्य क्या है?",
+    options: [
+      "डेटाबेस को डिलीट करना",
+      "बार-बार उपयोग होने वाले SQL स्टेटमेंट्स को संग्रहीत और निष्पादित करना",
+      "केवल डेटा को पढ़ना",
+      "डेटा को एनक्रिप्ट करना"
+    ],
+    answer: "बार-बार उपयोग होने वाले SQL स्टेटमेंट्स को संग्रहीत और निष्पादित करना"
+  },
+  {
+    question: "Stored Procedure को निष्पादित (execute) करने के लिए MySQL में कौन-सा कमांड उपयोग किया जाता है?",
+    options: ["EXEC", "CALL", "RUN", "START"],
+    answer: "CALL"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा स्टेटमेंट एक Stored Procedure को हटाने (delete) के लिए उपयोग किया जाता है?",
+    options: ["REMOVE PROCEDURE", "DELETE PROCEDURE", "DROP PROCEDURE", "ALTER PROCEDURE"],
+    answer: "DROP PROCEDURE"
+  },
+  {
+    question: "SQL में Stored Procedure को कौन-सा लाभ नहीं प्रदान करता है?",
+    options: [
+      "कोड पुन: उपयोग (Code Reusability)",
+      "बेहतर सुरक्षा (Better Security)",
+      "स्वचालित डेटा बैकअप (Automatic Data Backup)",
+      "तेज निष्पादन (Faster Execution)"
+    ],
+    answer: "स्वचालित डेटा बैकअप (Automatic Data Backup)"
+  },
+  {
+    question: "SQL Server में एक Stored Procedure को निष्पादित करने के लिए कौन-सा कमांड प्रयोग किया जाता है?",
+    options: ["EXEC", "RUN", "CALL", "PROCESS"],
+    answer: "EXEC"
+  },
+  {
+    question: "Stored Procedure में कौन-सा कंट्रोल फ्लो स्टेटमेंट उपयोग किया जा सकता है?",
+    options: ["IF-ELSE", "LOOP", "CASE", "उपरोक्त सभी"],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "Stored Procedure में कौन-सा कथन गलत है?",
+    options: [
+      "यह डेटाबेस में संग्रहीत होता है",
+      "यह प्रोग्रामिंग लैंग्वेज का हिस्सा नहीं होता",
+      "इसे केवल एक बार चलाया जा सकता है",
+      "यह डेटाबेस सुरक्षा को बढ़ा सकता है"
+    ],
+    answer: "इसे केवल एक बार चलाया जा सकता है"
+  },
+  {
+    question: "ट्रिगर (Trigger) क्या है?",
+    options: [
+      "एक प्रकार की टेबल",
+      "डेटाबेस में एक स्वचालित प्रक्रिया जो किसी विशेष घटना पर निष्पादित होती है",
+      "डेटा को हटाने का एक तरीका",
+      "एक प्रकार की कुंजी (Key)"
+    ],
+    answer: "डेटाबेस में एक स्वचालित प्रक्रिया जो किसी विशेष घटना पर निष्पादित होती है"
+  },
+  {
+    question: "SQL में ट्रिगर कब निष्पादित होता है?",
+    options: [
+      "जब उपयोगकर्ता लॉग इन करता है",
+      "जब कोई टेबल या व्यू पर कोई विशिष्ट घटना (INSERT, UPDATE, DELETE) होती है",
+      "जब डेटाबेस स्टार्ट होता है",
+      "जब कोई फ़ंक्शन कॉल किया जाता है"
+    ],
+    answer: "जब कोई टेबल या व्यू पर कोई विशिष्ट घटना (INSERT, UPDATE, DELETE) होती है"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा ट्रिगर का प्रकार नहीं है?",
+    options: ["BEFORE ट्रिगर", "AFTER ट्रिगर", "ON DEMAND ट्रिगर", "INSTEAD OF ट्रिगर"],
+    answer: "ON DEMAND ट्रिगर"
+  },
+  {
+    question: "ट्रिगर का उपयोग क्यों किया जाता है?",
+    options: [
+      "डेटा को ऑटोमेटिक अपडेट करने के लिए",
+      "डेटा संशोधन को ट्रैक करने के लिए (Audit Trail)",
+      "बिजनेस लॉजिक लागू करने के लिए",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "SQL में Row-Level ट्रिगर का क्या अर्थ है?",
+    options: [
+      "ट्रिगर केवल एक ही बार निष्पादित होगा",
+      "ट्रिगर प्रत्येक प्रभावित पंक्ति (Row) के लिए निष्पादित होगा",
+      "ट्रिगर केवल स्टेटमेंट के स्तर पर कार्य करेगा",
+      "ट्रिगर तब निष्पादित होता है जब नया डेटाबेस बनाया जाता है"
+    ],
+    answer: "ट्रिगर प्रत्येक प्रभावित पंक्ति (Row) के लिए निष्पादित होगा"
+  },
+  {
+    question: "SQL में Cursor का उपयोग किसलिए किया जाता है?",
+    options: [
+      "टेबल को हटाने के लिए",
+      "एक-एक करके रिकॉर्ड को एक्सेस करने और प्रोसेस करने के लिए",
+      "डेटा एन्क्रिप्शन के लिए",
+      "केवल डेटा डालने (Insert) के लिए"
+    ],
+    answer: "एक-एक करके रिकॉर्ड को एक्सेस करने और प्रोसेस करने के लिए"
+  },
+  {
+    question: "किस स्टेटमेंट का उपयोग Cursor को खोलने के लिए किया जाता है?",
+    options: ["OPEN", "FETCH", "DECLARE", "CLOSE"],
+    answer: "OPEN"
+  },
+  {
+    question: "Cursor के साथ किस स्टेटमेंट का उपयोग डेटा को प्राप्त (fetch) करने के लिए किया जाता है?",
+    options: ["GET", "FETCH", "COLLECT", "RECEIVE"],
+    answer: "FETCH"
+  },
+  {
+    question: "SQL में ट्रिगर और स्टोरड प्रोसीजर (Stored Procedure) में क्या अंतर है?",
+    options: [
+      "स्टोरड प्रोसीजर को मैन्युअली कॉल करना पड़ता है, जबकि ट्रिगर ऑटोमेटिक चलता है",
+      "ट्रिगर को मैन्युअली कॉल करना पड़ता है, जबकि स्टोरड प्रोसीजर ऑटोमेटिक चलता है",
+      "ट्रिगर केवल SELECT क्वेरी पर काम करता है",
+      "स्टोरड प्रोसीजर केवल DELETE ऑपरेशन के लिए उपयोग होता है"
+    ],
+    answer: "स्टोरड प्रोसीजर को मैन्युअली कॉल करना पड़ता है, जबकि ट्रिगर ऑटोमेटिक चलता है"
+  },
+    {
+    question: "SQL में Cursor का मुख्य उद्देश्य क्या है?",
+    options: ["एक ही बार में पूरी टेबल प्रोसेस करना", "डेटा को स्थायी रूप से हटाना", "डेटा को रिकॉर्ड-दर-रिकॉर्ड प्रोसेस करना", "डेटाबेस स्कीमा बदलना"],
+    answer: "डेटा को रिकॉर्ड-दर-रिकॉर्ड प्रोसेस करना"
+  },
+  {
+    question: "SQL में कितने प्रकार के Cursors होते हैं?",
+    options: ["1", "2", "3", "4"],
+    answer: "2"
+  },
+  {
+    question: "Explicit Cursor का उपयोग कब किया जाता है?",
+    options: ["जब हम सभी रिकॉर्ड को एक साथ प्रोसेस करना चाहते हैं", "जब हमें प्रत्येक रिकॉर्ड को अलग-अलग प्रोसेस करने की आवश्यकता होती है", "जब डेटा को डिलीट करना हो", "जब नई टेबल बनानी हो"],
+    answer: "जब हमें प्रत्येक रिकॉर्ड को अलग-अलग प्रोसेस करने की आवश्यकता होती है"
+  },
+  {
+    question: "SQL में Implicit Cursor कब उपयोग होता है?",
+    options: ["जब कोई DML ऑपरेशन (INSERT, UPDATE, DELETE) निष्पादित होता है", "जब उपयोगकर्ता खुद Cursor बनाता है", "जब एक टेबल को हटा दिया जाता है", "जब डेटा को स्थायी रूप से सेव करना होता है"],
+    answer: "जब कोई DML ऑपरेशन (INSERT, UPDATE, DELETE) निष्पादित होता है"
+  },
+  {
+    question: "SQL में एक Cursor को खोलने के लिए कौन-सा स्टेटमेंट उपयोग किया जाता है?",
+    options: ["OPEN", "FETCH", "EXEC", "DECLARE"],
+    answer: "OPEN"
+  },
+  {
+    question: "SQL में Cursor का उपयोग कब सबसे उपयुक्त होता है?",
+    options: ["जब डेटा को पूरी टेबल में अपडेट करना हो", "जब डेटा को बैच प्रोसेसिंग में प्रोसेस करना हो", "जब डेटा को रिकॉर्ड-दर-रिकॉर्ड प्रोसेस करना हो", "जब एक टेबल को स्थायी रूप से हटाना हो"],
+    answer: "जब डेटा को रिकॉर्ड-दर-रिकॉर्ड प्रोसेस करना हो"
+  },
+  {
+    question: "Cursor से डेटा प्राप्त करने के लिए कौन-सा स्टेटमेंट उपयोग किया जाता है?",
+    options: ["SELECT", "FETCH NEXT", "RETRIEVE", "NEXT"],
+    answer: "FETCH NEXT"
+  },
+  {
+    question: "SQL में Cursor को बंद करने के लिए कौन-सा स्टेटमेंट उपयोग किया जाता है?",
+    options: ["CLOSE", "DELETE", "END", "REMOVE"],
+    answer: "CLOSE"
+  },
+  {
+    question: "कर्सर को मेमोरी से मुक्त करने के लिए कौन-सा स्टेटमेंट उपयोग किया जाता है?",
+    options: ["DROP", "REMOVE", "DEALLOCATE", "DELETE"],
+    answer: "DEALLOCATE"
+  },
+  {
+    question: "SQL में एक Cursor को कब DEALLOCATE करना चाहिए?",
+    options: ["जब Cursor का उपयोग बंद हो गया हो और इसे मेमोरी से हटाना हो", "जब एक नया Cursor बनाना हो", "जब डेटा को अपडेट करना हो", "जब डेटा को पुनः लोड करना हो"],
+    answer: "जब Cursor का उपयोग बंद हो गया हो और इसे मेमोरी से हटाना हो"
+  },
+  {
+    question: "Cursor में कौन-से Control Structures उपयोग किए जा सकते हैं?",
+    options: ["IF...ELSE", "WHILE", "LOOP", "उपरोक्त सभी"],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "MySQL में Cursor के लिए कौन-सा सिंटैक्स सही है?",
+    options: [
+      "DECLARE cursor_name CURSOR FOR SELECT * FROM table_name;",
+      "CREATE cursor_name CURSOR FOR SELECT * FROM table_name;",
+      "OPEN CURSOR cursor_name;",
+      "DROP CURSOR cursor_name;"
+    ],
+    answer: "DECLARE cursor_name CURSOR FOR SELECT * FROM table_name;"
+  },
+  {
+    question: "SQL में FETCH स्टेटमेंट का उपयोग किसके लिए किया जाता है?",
+    options: ["टेबल से डेटा प्राप्त करने के लिए", "अगले रिकॉर्ड को प्राप्त करने के लिए", "Cursor को डिलीट करने के लिए", "डेटा को अपडेट करने के लिए"],
+    answer: "अगले रिकॉर्ड को प्राप्त करने के लिए"
+  },
+  {
+    question: "SQL में WHILE @@FETCH_STATUS = 0 का क्या उपयोग है?",
+    options: ["यह जांचता है कि Cursor में और रिकॉर्ड बचे हैं या नहीं", "यह डेटा को डिलीट करता है", "यह डेटा को अपडेट करता है", "यह नई टेबल बनाता है"],
+    answer: "यह जांचता है कि Cursor में और रिकॉर्ड बचे हैं या नहीं"
+  },
+  {
+    question: "SQL में एक Cursor को सीधे हटाने के लिए कौन-सा स्टेटमेंट उपयोग किया जाता है?",
+    options: ["CLOSE", "DROP", "DELETE", "DEALLOCATE"],
+    answer: "DEALLOCATE"
+  },
+  {
+    question: "SQL में Trigger क्या होता है?",
+    options: ["एक प्रकार का स्टोर्ड प्रोसीजर जो ऑटोमेटिकली एक्सीक्यूट होता है", "डेटा को स्थायी रूप से डिलीट करने के लिए उपयोग किया जाता है", "एक प्रकार का कर्सर होता है", "एक प्रकार का इंडेक्स होता है"],
+    answer: "एक प्रकार का स्टोर्ड प्रोसीजर जो ऑटोमेटिकली एक्सीक्यूट होता है"
+  },
+  {
+    question: "SQL में Triggers कब फायर होते हैं?",
+    options: ["DML ऑपरेशन (INSERT, UPDATE, DELETE) के दौरान", "DDL ऑपरेशन (CREATE, ALTER, DROP) के दौरान", "डेटाबेस इवेंट्स (LOGON, LOGOFF, STARTUP, SHUTDOWN) के दौरान", "उपरोक्त सभी"],
+    answer: "उपरोक्त सभी"
+  },
+   {
+    question: "किस प्रकार के ट्रिगर का उपयोग तब किया जाता है जब किसी टेबल में बदलाव से पहले कुछ लॉजिक एक्सीक्यूट करना हो?",
+    options: ["AFTER ट्रिगर", "INSTEAD OF ट्रिगर", "BEFORE ट्रिगर", "DISABLE ट्रिगर"],
+    answer: "BEFORE ट्रिगर"
+  },
+  {
+    question: "किस प्रकार के ट्रिगर का उपयोग तब किया जाता है जब किसी टेबल में बदलाव के बाद कुछ लॉजिक एक्सीक्यूट करना हो?",
+    options: ["BEFORE ट्रिगर", "AFTER ट्रिगर", "INSTEAD OF ट्रिगर", "SYSTEM ट्रिगर"],
+    answer: "AFTER ट्रिगर"
+  },
+  {
+    question: "INSTEAD OF ट्रिगर का मुख्य उपयोग क्या है?",
+    options: [
+      "यह एक टेबल में डेटा को स्टोर करता है",
+      "यह व्यूज़ (Views) पर ट्रिगर्स लगाने के लिए उपयोग किया जाता है",
+      "यह डेटाबेस को डिलीट करने के लिए उपयोग किया जाता है",
+      "यह एक प्रकार का ऑटोमेटिक इंडेक्स होता है"
+    ],
+    answer: "यह व्यूज़ (Views) पर ट्रिगर्स लगाने के लिए उपयोग किया जाता है"
+  },
+  {
+    question: "SQL में Table-Level Trigger और Row-Level Trigger में क्या अंतर है?",
+    options: [
+      "Row-Level ट्रिगर हर रिकॉर्ड के लिए चलता है, जबकि Table-Level ट्रिगर पूरी टेबल के लिए एक बार चलता है",
+      "दोनों समान होते हैं",
+      "Table-Level ट्रिगर हर रिकॉर्ड के लिए चलता है, जबकि Row-Level ट्रिगर पूरी टेबल के लिए एक बार चलता है",
+      "कोई अंतर नहीं है"
+    ],
+    answer: "Row-Level ट्रिगर हर रिकॉर्ड के लिए चलता है, जबकि Table-Level ट्रिगर पूरी टेबल के लिए एक बार चलता है"
+  },
+  {
+    question: "SQL में ट्रिगर का उपयोग किसके लिए किया जाता है?",
+    options: ["डेटा को वेरिफाई करने के लिए", "ऑडिटिंग के लिए", "सिक्योरिटी लागू करने के लिए", "उपरोक्त सभी"],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "ट्रिगर में OLD और NEW कीवर्ड का उपयोग कब किया जाता है?",
+    options: [
+      "केवल INSERT ऑपरेशन के लिए",
+      "केवल DELETE ऑपरेशन के लिए",
+      "INSERT, UPDATE, DELETE ऑपरेशनों में पुराने और नए डेटा को संदर्भित करने के लिए",
+      "केवल SELECT ऑपरेशन के लिए"
+    ],
+    answer: "INSERT, UPDATE, DELETE ऑपरेशनों में पुराने और नए डेटा को संदर्भित करने के लिए"
+  },
+  {
+    question: "SQL में एक ट्रिगर बनाने के लिए सही सिंटैक्स क्या है?",
+    options: [
+      "CREATE TRIGGER trigger_name ON table_name AFTER INSERT",
+      "DECLARE TRIGGER trigger_name FOR table_name",
+      "TRIGGER trigger_name CREATE AFTER INSERT ON table_name",
+      "SET TRIGGER trigger_name ON table_name"
+    ],
+    answer: "CREATE TRIGGER trigger_name ON table_name AFTER INSERT"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

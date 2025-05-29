@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+   {
+    question: "JavaScript में दो वेरिएबल्स की वैल्यू और टाइप की तुलना करने के लिए कौन-सा ऑपरेटर उपयोग किया जाता है?",
+    options: [
+      "==",
+      "===",
+      "=",
+      "!="
+    ],
+    answer: "===",
+    explanation: "=== वैल्यू और टाइप दोनों की तुलना करता है, जबकि == केवल वैल्यू की तुलना करता है।"
+  },
+  {
+    question: "JavaScript में किसी वेरिएबल की डेटा टाइप को जांचने के लिए कौन-सा ऑपरेटर प्रयोग किया जाता है?",
+    options: [
+      "typeOf",
+      "typeof",
+      "instanceOf",
+      "checkType"
+    ],
+    answer: "typeof",
+    explanation: "typeof ऑपरेटर किसी वेरिएबल की डेटा टाइप को चेक करने के लिए उपयोग किया जाता है।"
+  },
+  {
+    question: "JavaScript में स्ट्रिंग को जोड़ने के लिए कौन-सा ऑपरेटर उपयोग किया जाता है?",
+    options: [
+      "+",
+      "-",
+      "*",
+      "/"
+    ],
+    answer: "+"
+  },
+  {
+    question: "JavaScript में ‘Strict Mode’ को सक्रिय करने के लिए कौन-सा कथन उपयोग किया जाता है?",
+    options: [
+      "\"use strict\";",
+      "strict_mode();",
+      "use.strict = true;",
+      "enable strict;"
+    ],
+    answer: "\"use strict\";",
+    explanation: "\"use strict\"; कोड को स्ट्रिक्ट मोड में चलाने के लिए उपयोग किया जाता है, जिससे एरर को पकड़ने में मदद मिलती है।"
+  },
+  {
+    question: "JavaScript में null का डेटा टाइप क्या होता है?",
+    options: [
+      "null",
+      "object",
+      "undefined",
+      "string"
+    ],
+    answer: "object",
+    explanation: "JavaScript में null का डेटा टाइप object होता है (यह एक पुरानी गलती है जो अभी भी मौजूद है)।"
+  },
+  {
+    question: "JavaScript में कौन-सा लूप कम से कम एक बार चलेगा, चाहे कंडीशन सही हो या न हो?",
+    options: [
+      "for",
+      "while",
+      "do…while",
+      "foreach"
+    ],
+    answer: "do…while",
+    explanation: "do...while लूप पहले कोड को रन करता है और फिर कंडीशन को चेक करता है, जिससे यह कम से कम एक बार जरूर चलता है।"
+  },
+  {
+    question: "JavaScript में किसी फ़ंक्शन से मान वापस करने के लिए कौन-सा कीवर्ड उपयोग किया जाता है?",
+    options: [
+      "return",
+      "break",
+      "continue",
+      "exit"
+    ],
+    answer: "return",
+    explanation: "return कीवर्ड किसी फ़ंक्शन से मान वापस करने के लिए उपयोग किया जाता है।"
+  },
+  {
+    question: "JavaScript में localStorage और sessionStorage के बीच क्या अंतर है?",
+    options: [
+      "sessionStorage डेटा को लंबे समय तक स्टोर करता है और localStorage केवल सेशन तक स्टोर करता है।",
+      "localStorage डेटा को लंबे समय तक स्टोर करता है और sessionStorage केवल सेशन तक स्टोर करता है।",
+      "दोनों एक ही तरह काम करते हैं।",
+      "इनमें कोई अंतर नहीं है।"
+    ],
+    answer: "localStorage डेटा को लंबे समय तक स्टोर करता है और sessionStorage केवल सेशन तक स्टोर करता है।",
+    explanation: "localStorage डेटा को स्थायी रूप से ब्राउज़र में रखता है, जबकि sessionStorage डेटा को केवल सेशन समाप्त होने तक रखता है।"
+  },
+  {
+    question: "JavaScript में किसी एरे का अंतिम तत्व निकालने के लिए कौन-सी विधि उपयोग की जाती है?",
+    options: [
+      "push()",
+      "pop()",
+      "shift()",
+      "unshift()"
+    ],
+    answer: "pop()",
+    explanation: "pop() विधि एरे के अंतिम तत्व को हटाकर वापस लौटाती है।"
+  },
+  {
+    question: "JavaScript में setTimeout() फ़ंक्शन का उपयोग किसके लिए किया जाता है?",
+    options: [
+      "किसी फ़ंक्शन को तुरंत कॉल करने के लिए",
+      "किसी फ़ंक्शन को निर्धारित समय बाद कॉल करने के लिए",
+      "किसी फ़ंक्शन को बार-बार कॉल करने के लिए",
+      "फ़ंक्शन को रोकने के लिए"
+    ],
+    answer: "किसी फ़ंक्शन को निर्धारित समय बाद कॉल करने के लिए",
+    explanation: "setTimeout() किसी फ़ंक्शन को एक निश्चित समय (मिलीसेकंड) के बाद निष्पादित करता है।"
+  },
+  {
+    question: "JavaScript में JSON का पूरा नाम क्या है?",
+    options: [
+      "JavaScript Object Notation",
+      "Java System Object Naming",
+      "JavaScript Oriented Notation",
+      "Java Serialized Object Notation"
+    ],
+    answer: "JavaScript Object Notation",
+    explanation: "JSON (JavaScript Object Notation) डेटा को स्टोर और ट्रांसफर करने का एक फॉर्मेट है।"
+  },
+  {
+    question: "JavaScript में कौन-सा फ़ंक्शन JSON को पार्स करने के लिए उपयोग किया जाता है?",
+    options: [
+      "JSON.parse()",
+      "JSON.stringify()",
+      "JSON.convert()",
+      "JSON.toObject()"
+    ],
+    answer: "JSON.parse()",
+    explanation: "JSON.parse() किसी JSON स्ट्रिंग को JavaScript ऑब्जेक्ट में बदलने के लिए उपयोग किया जाता है।"
+  },
+  {
+    question: "JavaScript में ‘this’ कीवर्ड का उपयोग किसके लिए किया जाता है?",
+    options: [
+      "वर्तमान फ़ंक्शन को संदर्भित करने के लिए",
+      "वर्तमान ऑब्जेक्ट को संदर्भित करने के लिए",
+      "वर्तमान फ़ाइल को संदर्भित करने के लिए",
+      "वर्तमान ब्राउज़र को संदर्भित करने के लिए"
+    ],
+    answer: "वर्तमान ऑब्जेक्ट को संदर्भित करने के लिए",
+    explanation: "this कीवर्ड JavaScript में उस ऑब्जेक्ट को संदर्भित करता है, जो वर्तमान संदर्भ में कार्य कर रहा है।"
+  },
+  {
+    question: "JavaScript Control Flow का क्या उपयोग है?",
+    options: [
+      "कोड के निष्पादन को नियंत्रित करने के लिए",
+      "केवल गणना करने के लिए",
+      "केवल डेटा स्टोरेज के लिए",
+      "HTML को स्टाइल देने के लिए"
+    ],
+    answer: "कोड के निष्पादन को नियंत्रित करने के लिए"
+  },
+   {
+    question: "JavaScript में कौन-सा स्टेटमेंट निर्णय लेने के लिए उपयोग किया जाता है?",
+    options: [
+      "Loop",
+      "If-else",
+      "Function",
+      "Array"
+    ],
+    answer: "If-else"
+  },
+  {
+    question: "If स्टेटमेंट का उपयोग कब किया जाता है?",
+    options: [
+      "जब कोई शर्त दी गई हो",
+      "जब कोड को बार-बार चलाना हो",
+      "जब फ़ंक्शन को कॉल करना हो",
+      "जब डेटा स्टोर करना हो"
+    ],
+    answer: "जब कोई शर्त दी गई हो"
+  },
+  {
+    question: "If-Else स्टेटमेंट का उपयोग क्यों किया जाता है?",
+    options: [
+      "लूप को नियंत्रित करने के लिए",
+      "दो स्थितियों में से एक को निष्पादित करने के लिए",
+      "केवल फाइल पढ़ने के लिए",
+      "केवल गणना करने के लिए"
+    ],
+    answer: "दो स्थितियों में से एक को निष्पादित करने के लिए"
+  },
+  {
+    question: "Switch स्टेटमेंट का उपयोग कब किया जाता है?",
+    options: [
+      "जब कई संभावित स्थितियों की जाँच करनी हो",
+      "जब केवल एक शर्त चेक करनी हो",
+      "जब डेटा को स्टोर करना हो",
+      "जब वेबपेज को स्टाइल करना हो"
+    ],
+    answer: "जब कई संभावित स्थितियों की जाँच करनी हो"
+  },
+  {
+    question: "Switch स्टेटमेंट में प्रत्येक केस के बाद कौन-सा स्टेटमेंट उपयोग किया जाता है?",
+    options: [
+      "Return",
+      "Continue",
+      "Break",
+      "Halt"
+    ],
+    answer: "Break"
+  },
+  {
+    question: "Ternary ऑपरेटर का उपयोग कब किया जाता है?",
+    options: [
+      "संक्षिप्त if-else लिखने के लिए",
+      "लूप बनाने के लिए",
+      "फ़ंक्शन परिभाषित करने के लिए",
+      "ऑब्जेक्ट बनाने के लिए"
+    ],
+    answer: "संक्षिप्त if-else लिखने के लिए"
+  },
+  {
+    question: "Ternary ऑपरेटर का सही सिंटैक्स क्या है?",
+    options: [
+      "condition ? true_value : false_value",
+      "condition if true then false",
+      "if (condition) {true} else {false}",
+      "true_condition : false_condition ?"
+    ],
+    answer: "condition ? true_value : false_value"
+  },
+  {
+    question: "For लूप का उपयोग कब किया जाता है?",
+    options: [
+      "जब कोड को बार-बार चलाना हो",
+      "जब कोई शर्त चेक करनी हो",
+      "जब केवल एक बार कोड चलाना हो",
+      "जब फाइल पढ़नी हो"
+    ],
+    answer: "जब कोड को बार-बार चलाना हो"
+  },
+  {
+    question: "For लूप का सही सिंटैक्स क्या है?",
+    options: [
+      "for (initialization; condition; increment/decrement) { code }",
+      "for { initialization; condition; increment/decrement }",
+      "loop(for) { initialization; condition; increment/decrement }",
+      "for (condition; initialization; increment/decrement) { code }"
+    ],
+    answer: "for (initialization; condition; increment/decrement) { code }"
+  },
+  {
+    question: "JavaScript में फ़ंक्शन क्या होता है?",
+    options: [
+      "कोड का एक ब्लॉक जो एक विशिष्ट कार्य करता है",
+      "केवल संख्याओं को जोड़ने के लिए",
+      "केवल एक बार चलने वाले कोड के लिए",
+      "केवल डेटा स्टोर करने के लिए"
+    ],
+    answer: "कोड का एक ब्लॉक जो एक विशिष्ट कार्य करता है"
+  },
+  {
+    question: "JavaScript में फ़ंक्शन को कैसे कॉल किया जाता है?",
+    options: [
+      "function call myFunction()",
+      "myFunction()",
+      "call function myFunction()",
+      "run myFunction()"
+    ],
+    answer: "myFunction()"
+  },
+  {
+    question: "JavaScript में फ़ंक्शन को परिभाषित करने के लिए कौन-सा कीवर्ड उपयोग किया जाता है?",
+    options: [
+      "define",
+      "method",
+      "function",
+      "procedure"
+    ],
+    answer: "function"
+  },
+  {
+    question: "JavaScript में फ़ंक्शन का सही सिंटैक्स क्या है?",
+    options: [
+      "function myFunction { }",
+      "function myFunction() { }",
+      "function: myFunction() { }",
+      "function = myFunction() { }"
+    ],
+    answer: "function myFunction() { }"
+  },
+   {
+    question: "JavaScript में कौन सा कथन सत्य है?",
+    options: [
+      "फ़ंक्शन को केवल एक बार परिभाषित किया जा सकता है",
+      "फ़ंक्शन को केवल अन्य फ़ंक्शनों के अंदर परिभाषित किया जा सकता है",
+      "फ़ंक्शन को कई बार परिभाषित और कॉल किया जा सकता है",
+      "JavaScript फ़ंक्शन केवल ब्राउज़र में काम करता है"
+    ],
+    answer: "फ़ंक्शन को कई बार परिभाषित और कॉल किया जा सकता है"
+  },
+  {
+    question: "JavaScript में फ़ंक्शन क्या रिटर्न करता है अगर कोई return स्टेटमेंट नहीं है?",
+    options: [
+      "0",
+      "undefined",
+      "null",
+      "Error"
+    ],
+    answer: "undefined"
+  },
+  {
+    question: "Arrow Function का उपयोग क्यों किया जाता है?",
+    options: [
+      "फ़ंक्शन को संक्षिप्त और आसान बनाने के लिए",
+      "केवल बड़े कोड लिखने के लिए",
+      "केवल गणना करने के लिए",
+      "केवल ब्राउज़र में काम करने के लिए"
+    ],
+    answer: "फ़ंक्शन को संक्षिप्त और आसान बनाने के लिए"
+  },
+  {
+    question: "Arrow Function लिखने का सही तरीका क्या है?",
+    options: [
+      "let myFunc = (a, b) => { return a + b; }",
+      "function myFunc(a, b) => { return a + b; }",
+      "myFunc = function(a, b) { return a + b; } =>",
+      "(a, b) => function myFunc { return a + b; }"
+    ],
+    answer: "let myFunc = (a, b) => { return a + b; }"
+  },
+  {
+    question: "JavaScript में Local Variable क्या होता है?",
+    options: [
+      "एक वेरिएबल जो केवल एक फ़ंक्शन के अंदर उपयोग किया जा सकता है",
+      "एक वेरिएबल जो पूरे प्रोग्राम में उपयोग किया जा सकता है",
+      "केवल HTML में उपयोग होने वाला वेरिएबल",
+      "केवल ब्राउज़र द्वारा पढ़ा जाने वाला वेरिएबल"
+    ],
+    answer: "एक वेरिएबल जो केवल एक फ़ंक्शन के अंदर उपयोग किया जा सकता है"
+  },
+  {
+    question: "Self-Invoking Function क्या होता है?",
+    options: [
+      "एक फ़ंक्शन जो स्वतः कॉल हो जाता है",
+      "एक फ़ंक्शन जो दूसरे फ़ंक्शन को कॉल करता है",
+      "एक फ़ंक्शन जो कभी निष्पादित नहीं होता",
+      "एक फ़ंक्शन जो केवल उपयोगकर्ता के क्लिक करने पर कॉल होता है"
+    ],
+    answer: "एक फ़ंक्शन जो स्वतः कॉल हो जाता है"
+  },
+  {
+    question: "JavaScript में फ़ंक्शन को किसी वेरिएबल के रूप में उपयोग करने का सही तरीका क्या है?",
+    options: [
+      "let x = myFunction();",
+      "let x = function myFunction();",
+      "let x = function() { return 5; };",
+      "let x = function() myFunction { return 5; };"
+    ],
+    answer: "let x = function() { return 5; };"
+  },
+  {
+    question: "JavaScript में फ़ंक्शन का उपयोग किसलिए किया जाता है?",
+    options: [
+      "कोड को पुनः उपयोग करने के लिए",
+      "केवल एक बार कोड को चलाने के लिए",
+      "केवल गणितीय संचालन के लिए",
+      "केवल ब्राउज़र में इवेंट हैंडल करने के लिए"
+    ],
+    answer: "कोड को पुनः उपयोग करने के लिए"
+  },
+  {
+    question: "JavaScript में ऑब्जेक्ट क्या होता है?",
+    options: [
+      "एक डेटा टाइप",
+      "की-वैल्यू पेयर का एक संग्रह",
+      "केवल फ़ंक्शन का संग्रह",
+      "केवल नंबर्स का संग्रह"
+    ],
+    answer: "की-वैल्यू पेयर का एक संग्रह"
+  },
+  {
+    question: "JavaScript में ऑब्जेक्ट की प्रॉपर्टी क्या हो सकती है?",
+    options: [
+      "केवल स्ट्रिंग",
+      "केवल नंबर",
+      "कोई भी डेटा टाइप या फ़ंक्शन",
+      "केवल बूलियन वैल्यू"
+    ],
+    answer: "कोई भी डेटा टाइप या फ़ंक्शन"
+  },
+  {
+    question: "JavaScript में प्रोटोटाइप क्या होता है?",
+    options: [
+      "एक डेटा टाइप",
+      "एक फ़ंक्शन",
+      "एक ऑब्जेक्ट जिससे अन्य ऑब्जेक्ट्स इनहेरिट कर सकते हैं",
+      "एक वैरिएबल"
+    ],
+    answer: "एक ऑब्जेक्ट जिससे अन्य ऑब्जेक्ट्स इनहेरिट कर सकते हैं"
+  },
+  {
+    question: "JavaScript में ऑब्जेक्ट को दूसरे ऑब्जेक्ट से इनहेरिट करने के लिए कौन-सा तरीका उपयोग किया जाता है?",
+    options: [
+      "Object.clone()",
+      "Object.create()",
+      "Object.copy()",
+      "Object.extend()"
+    ],
+    answer: "Object.create()"
+  },
+  {
+    question: "Constructor function का उपयोग किसके लिए किया जाता है?",
+    options: [
+      "नए ऑब्जेक्ट्स बनाने के लिए",
+      "मौजूदा ऑब्जेक्ट्स को डिलीट करने के लिए",
+      "केवल वैरिएबल डिफाइन करने के लिए",
+      "केवल फ़ंक्शन चलाने के लिए"
+    ],
+    answer: "नए ऑब्जेक्ट्स बनाने के लिए"
+  },
+   {
+    question: "JavaScript में ऑब्जेक्ट को instantiate करने के लिए कौन-सा कीवर्ड उपयोग किया जाता है?",
+    options: ["this", "new", "create", "prototype"],
+    answer: "new"
+  },
+  {
+    question: "Encapsulation का सही उदाहरण कौन-सा है?",
+    options: [
+      "फ़ंक्शंस के अंदर प्राइवेट वैरिएबल का उपयोग करना",
+      "सभी डेटा को ग्लोबल रखना",
+      "किसी फ़ंक्शन को बार-बार कॉल करना",
+      "सभी प्रॉपर्टीज़ को पब्लिक रखना"
+    ],
+    answer: "फ़ंक्शंस के अंदर प्राइवेट वैरिएबल का उपयोग करना"
+  },
+  {
+    question: "JavaScript में पोलिमॉर्फिज़्म कैसे काम करता है?",
+    options: [
+      "ऑब्जेक्ट्स को विभिन्न प्रकार से उपयोग करने की अनुमति देकर",
+      "ऑब्जेक्ट्स को स्थिर बनाकर",
+      "केवल क्लासेस का उपयोग करके",
+      "केवल प्रोटोटाइप चेन से"
+    ],
+    answer: "ऑब्जेक्ट्स को विभिन्न प्रकार से उपयोग करने की अनुमति देकर"
+  },
+  {
+    question: "JavaScript में प्रोटोटाइप चेन का उपयोग किसके लिए किया जाता है?",
+    options: [
+      "इनहेरिटेंस को लागू करने के लिए",
+      "वैरिएबल डिक्लेयर करने के लिए",
+      "फ़ंक्शंस को एक्सीक्यूट करने के लिए",
+      "केवल डेटा स्टोर करने के लिए"
+    ],
+    answer: "इनहेरिटेंस को लागू करने के लिए"
+  },
+  {
+    question: "JavaScript में document object क्या दर्शाता है?",
+    options: [
+      "एक HTML पेज",
+      "एक ब्राउज़र विंडो",
+      "एक वेब सर्वर",
+      "एक CSS फ़ाइल"
+    ],
+    answer: "एक HTML पेज"
+  },
+  {
+    question: "document.getElementById() किसके लिए उपयोग किया जाता है?",
+    options: [
+      "दिए गए नाम के सभी एलिमेंट्स को खोजने के लिए",
+      "दिए गए टैग नाम वाले सभी एलिमेंट्स को खोजने के लिए",
+      "दिए गए ID वाले एक विशिष्ट एलिमेंट को खोजने के लिए",
+      "दिए गए क्लास नाम वाले सभी एलिमेंट्स को खोजने के लिए"
+    ],
+    answer: "दिए गए ID वाले एक विशिष्ट एलिमेंट को खोजने के लिए"
+  },
+  {
+    question: "document.getElementsByClassName() क्या करता है?",
+    options: [
+      "दिए गए क्लास नाम वाले सभी एलिमेंट्स को खोजता है",
+      "दिए गए ID वाले एक एलिमेंट को खोजता है",
+      "दिए गए नाम के सभी इनपुट फ़ील्ड को खोजता है",
+      "दिए गए टैग नाम वाले सभी एलिमेंट्स को खोजता है"
+    ],
+    answer: "दिए गए क्लास नाम वाले सभी एलिमेंट्स को खोजता है"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा document object की एक विधि (method) है?",
+    options: [
+      "document.fetchData()",
+      "document.write()",
+      "document.showData()",
+      "document.printElement()"
+    ],
+    answer: "document.write()"
+  },
+  {
+    question: "document.getElementsByTagName() का उपयोग किसके लिए किया जाता है?",
+    options: [
+      "दिए गए टैग नाम वाले सभी एलिमेंट्स को खोजने के लिए",
+      "दिए गए ID वाले एलिमेंट को खोजने के लिए",
+      "दिए गए नाम वाले सभी एलिमेंट्स को खोजने के लिए",
+      "दिए गए क्लास नाम वाले एलिमेंट को खोजने के लिए"
+    ],
+    answer: "दिए गए टैग नाम वाले सभी एलिमेंट्स को खोजने के लिए"
+  },
+  {
+    question: "अगर किसी HTML फ़ॉर्म में <input type=\"text\" id=\"username\"> है, तो उसका मान (value) प्राप्त करने के लिए सही तरीका क्या होगा?",
+    options: [
+      "document.getElementByName(\"username\").value",
+      "document.getElementById(\"username\").value",
+      "document.getElementsByClassName(\"username\").value",
+      "document.getElementsByTagName(\"username\").value"
+    ],
+    answer: "document.getElementById(\"username\").value"
+  }
+
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

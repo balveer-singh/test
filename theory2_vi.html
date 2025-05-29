@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+     {
+    question: "नीचे दिए गए ट्रिगर में क्या गलत है?\nCREATE TRIGGER trg_Test\nAFTER INSERT ON Customers\nFOR EACH TABLE\nBEGIN\n   INSERT INTO AuditLog VALUES ('Insert operation performed');\nEND;",
+    options: [
+      "AFTER INSERT की जगह BEFORE INSERT होना चाहिए",
+      "FOR EACH TABLE को FOR EACH ROW से बदलना चाहिए",
+      "BEGIN...END ब्लॉक नहीं होना चाहिए",
+      "इसमें कोई गलती नहीं है"
+    ],
+    answer: "FOR EACH TABLE को FOR EACH ROW से बदलना चाहिए"
+  },
+  {
+    question: "ट्रिगर को डिसेबल करने के लिए कौन-सा स्टेटमेंट उपयोग किया जाता है?",
+    options: [
+      "ALTER TRIGGER trigger_name DISABLE;",
+      "DROP TRIGGER trigger_name;",
+      "DELETE TRIGGER trigger_name;",
+      "REMOVE TRIGGER trigger_name;"
+    ],
+    answer: "ALTER TRIGGER trigger_name DISABLE;"
+  },
+  {
+    question: "ट्रिगर को हटाने के लिए कौन-सा स्टेटमेंट उपयोग किया जाता है?",
+    options: [
+      "DROP TRIGGER trigger_name;",
+      "DELETE TRIGGER trigger_name;",
+      "REMOVE TRIGGER trigger_name;",
+      "DISABLE TRIGGER trigger_name;"
+    ],
+    answer: "DROP TRIGGER trigger_name;"
+  },
+  {
+    question: "ट्रिगर में WHEN क्लॉज़ का उपयोग कब किया जाता है?",
+    options: [
+      "केवल AFTER ट्रिगर के लिए",
+      "केवल BEFORE ट्रिगर के लिए",
+      "केवल ROW-LEVEL ट्रिगर में",
+      "केवल TABLE-LEVEL ट्रिगर में"
+    ],
+    answer: "केवल ROW-LEVEL ट्रिगर में"
+  },
+  {
+    question: "ट्रिगर में कौन-सा डेटा संशोधित नहीं किया जा सकता?",
+    options: [
+      "INSERTED डेटा",
+      "DELETED डेटा",
+      "OLD डेटा",
+      "NEW डेटा"
+    ],
+    answer: "OLD डेटा"
+  },
+  {
+    question: "किस स्थिति में ट्रिगर को नहीं चलाया जा सकता?",
+    options: [
+      "जब ट्रिगर डिसेबल हो",
+      "जब टेबल में डेटा न हो",
+      "जब ट्रिगर में सिंटैक्स एरर हो",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "SQL में Cursor क्या होता है?",
+    options: [
+      "डेटा को स्थायी रूप से स्टोर करने के लिए उपयोग किया जाता है",
+      "एक प्रकार का स्टोर्ड प्रोसीजर होता है",
+      "डेटा को row-by-row प्रोसेस करने के लिए उपयोग किया जाता है",
+      "डेटाबेस को डिलीट करने के लिए उपयोग किया जाता है"
+    ],
+    answer: "डेटा को row-by-row प्रोसेस करने के लिए उपयोग किया जाता है"
+  },
+  {
+    question: "SQL में Cursor का मुख्य उपयोग कब किया जाता है?",
+    options: [
+      "जब हमें पूरे डेटा सेट पर एक साथ प्रोसेसिंग करनी हो",
+      "जब हमें एक ही row को बार-बार अपडेट करना हो",
+      "जब हमें row-by-row प्रोसेसिंग करनी हो",
+      "जब हमें डेटाबेस को ड्रॉप करना हो"
+    ],
+    answer: "जब हमें row-by-row प्रोसेसिंग करनी हो"
+  },
+  {
+    question: "Cursor के लाइफ साइकल में पहला स्टेप कौन-सा होता है?",
+    options: [
+      "FETCH",
+      "CLOSE",
+      "DECLARE",
+      "DEALLOCATE"
+    ],
+    answer: "DECLARE"
+  },
+  {
+    question: "Cursor को डेटा स्टोर करने के लिए खोलने के लिए कौन-सा कमांड उपयोग किया जाता है?",
+    options: [
+      "DECLARE cursor_name;",
+      "OPEN cursor_name;",
+      "FETCH cursor_name;",
+      "CLOSE cursor_name;"
+    ],
+    answer: "OPEN cursor_name;"
+  },
+  {
+    question: "SQL में एक cursor को बंद करने के लिए कौन-सा कमांड उपयोग किया जाता है?",
+    options: [
+      "END cursor_name;",
+      "CLOSE cursor_name;",
+      "STOP cursor_name;",
+      "DISABLE cursor_name;"
+    ],
+    answer: "CLOSE cursor_name;"
+  },
+  {
+    question: "SQL में एक cursor को पूरी तरह से हटाने के लिए कौन-सा कमांड उपयोग किया जाता है?",
+    options: [
+      "CLOSE cursor_name;",
+      "DROP cursor_name;",
+      "DEALLOCATE cursor_name;",
+      "DELETE cursor_name;"
+    ],
+    answer: "DEALLOCATE cursor_name;"
+  },
+  {
+    question: "SQL में Cursor के कितने प्रकार होते हैं?",
+    options: [
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    answer: "4"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा Cursor केवल आगे की दिशा में मूव कर सकता है?",
+    options: [
+      "Static Cursor",
+      "Dynamic Cursor",
+      "Forward-Only Cursor",
+      "Keyset Cursor"
+    ],
+    answer: "Forward-Only Cursor"
+  },
+  {
+    question: "कौन-सा Cursor सभी अपडेट्स और डिलीशन को पहचान सकता है?",
+    options: [
+      "Static Cursor",
+      "Dynamic Cursor",
+      "Keyset Cursor",
+      "Forward-Only Cursor"
+    ],
+    answer: "Dynamic Cursor"
+  },
+  {
+    question: "कौन-सा Cursor टेम्पररी डेटा स्टोर करता है और केवल read-only होता है?",
+    options: [
+      "Static Cursor",
+      "Dynamic Cursor",
+      "Keyset Cursor",
+      "Forward-Only Cursor"
+    ],
+    answer: "Static Cursor"
+  },
+  {
+    question: "SQL में FETCH स्टेटमेंट किसके लिए उपयोग किया जाता है?",
+    options: [
+      "Cursor को बंद करने के लिए",
+      "Cursor से अगली row प्राप्त करने के लिए",
+      "Cursor को ओपन करने के लिए",
+      "Cursor को डिलीट करने के लिए"
+    ],
+    answer: "Cursor से अगली row प्राप्त करने के लिए"
+  },
+  {
+    question: "SQL में @@FETCHSTATUS का उपयोग किस लिए किया जाता है?",
+    options: [
+      "यह बताने के लिए कि FETCH स्टेटमेंट सफल हुआ या नहीं",
+      "यह बताने के लिए कि Cursor ओपन है या नहीं",
+      "यह बताने के लिए कि Cursor को डिलीट किया गया या नहीं",
+      "यह बताने के लिए कि Cursor को क्लोज़ किया गया या नहीं"
+    ],
+    answer: "यह बताने के लिए कि FETCH स्टेटमेंट सफल हुआ या नहीं"
+  },
+    {
+    question: "SQL में कौन-सा Cursor डिफ़ॉल्ट होता है?",
+    options: [
+      "Forward-Only Cursor",
+      "Static Cursor",
+      "Dynamic Cursor",
+      "Keyset Cursor"
+    ],
+    answer: "Forward-Only Cursor"
+  },
+  {
+    question: "SQL में एक Cursor में लूपिंग करने के लिए किस स्टेटमेंट का उपयोग किया जाता है?",
+    options: [
+      "FOR",
+      "WHILE @@FETCH_STATUS = 0",
+      "LOOP",
+      "DO-WHILE"
+    ],
+    answer: "WHILE @@FETCH_STATUS = 0"
+  },
+  {
+    question: "कौन-सा Cursor एक स्टेटिक और डायनामिक Cursor के बीच की विशेषताओं को साझा करता है?",
+    options: [
+      "Static Cursor",
+      "Dynamic Cursor",
+      "Keyset Cursor",
+      "Forward-Only Cursor"
+    ],
+    answer: "Keyset Cursor"
+  },
+  {
+    question: "SQL Server में Cursor क्या होता है?",
+    options: [
+      "यह एक Looping Structure है",
+      "यह एक Temporary Table है",
+      "यह Row-by-Row डेटा प्रोसेस करने का एक तरीका है",
+      "यह केवल SELECT क्वेरी के लिए उपयोग होता है"
+    ],
+    answer: "यह Row-by-Row डेटा प्रोसेस करने का एक तरीका है"
+  },
+  {
+    question: "Cursor को Declare करने के लिए सही सिंटैक्स क्या है?",
+    options: [
+      "DECLARE cursor_name CURSOR FOR SELECT * FROM table_name;",
+      "DECLARE CURSOR cursor_name FOR SELECT * FROM table_name;",
+      "DECLARE cursor_name AS CURSOR FOR SELECT * FROM table_name;",
+      "DECLARE cursor_name CURSOR := SELECT * FROM table_name;"
+    ],
+    answer: "DECLARE cursor_name CURSOR FOR SELECT * FROM table_name;"
+  },
+  {
+    question: "Cursor को Open करने के लिए कौन सा स्टेटमेंट उपयोग किया जाता है?",
+    options: [
+      "START cursor_name;",
+      "OPEN cursor_name;",
+      "FETCH cursor_name;",
+      "RUN cursor_name;"
+    ],
+    answer: "OPEN cursor_name;"
+  },
+  {
+    question: "SQL Server में कितने प्रकार के Cursor होते हैं?",
+    options: [
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    answer: "4"
+  },
+  {
+    question: "किस प्रकार का Cursor केवल आगे की दिशा में मूव करता है और सबसे तेज़ होता है?",
+    options: [
+      "Static Cursor",
+      "Dynamic Cursor",
+      "Forward-Only Cursor",
+      "Keyset Cursor"
+    ],
+    answer: "Forward-Only Cursor"
+  },
+  {
+    question: "Cursor को पूरी तरह से हटाने के लिए कौन सा कमांड उपयोग किया जाता है?",
+    options: [
+      "DROP cursor_name;",
+      "DELETE cursor_name;",
+      "DEALLOCATE cursor_name;",
+      "CLOSE cursor_name;"
+    ],
+    answer: "DEALLOCATE cursor_name;"
+  },
+  {
+    question: "SQL Server में Cursor का मुख्य नुकसान क्या है?",
+    options: [
+      "यह बहुत तेज़ होता है",
+      "यह बहुत अधिक मेमोरी उपयोग करता है",
+      "यह केवल SELECT क्वेरी को सपोर्ट करता है",
+      "यह Result Set को स्टोर नहीं कर सकता"
+    ],
+    answer: "यह बहुत अधिक मेमोरी उपयोग करता है"
+  },
+  {
+    question: "किस प्रकार का Cursor तब भी अपडेट दिखाता है जब Cursor Open रहता है?",
+    options: [
+      "Static Cursor",
+      "Dynamic Cursor",
+      "Forward-Only Cursor",
+      "Keyset Cursor"
+    ],
+    answer: "Dynamic Cursor"
+  },
+  {
+    question: "Cursor का उपयोग कब किया जाना चाहिए?",
+    options: [
+      "जब हमें बड़े डेटा सेट को प्रोसेस करना हो",
+      "जब Row-by-Row डेटा अपडेट करना ज़रूरी हो",
+      "जब WHILE Loop उपयोग नहीं कर सकते",
+      "जब हमें Multi-Threading चाहिए"
+    ],
+    answer: "जब Row-by-Row डेटा अपडेट करना ज़रूरी हो"
+  },
+  {
+  question: "Cursor से अगली Row लाने के लिए कौन सा स्टेटमेंट उपयोग होता है?",
+  options: [
+    "NEXT cursor_name;",
+    "FETCH NEXT FROM cursor_name INTO variables;",
+    "GET NEXT cursor_name;",
+    "MOVE NEXT cursor_name;"
+  ],
+  answer: "FETCH NEXT FROM cursor_name INTO variables;"
+}
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

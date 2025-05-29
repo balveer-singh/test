@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: `What does this statement check: x is not y?\n
+    यह statement क्या चेक करता है: x is not y?`,
+    options: [
+      "Values are different",
+      "Data types are different",
+      "Memory locations are different",
+      "None of the above"
+    ],
+    answer: "Memory locations are different"
+  },
+   {
+    question: `What will be the output of the following code?\nx = 7\ny = 7\nprint(x is y)\n
+    निम्नलिखित कोड का आउटपुट क्या होगा?\nx = 7\ny = 7\nprint(x is y)`,
+    options: ["False", "True", "Error", "7"],
+    answer: "True"
+  },
+  {
+    question: `Which operator will you use to check if a value is part of a sequence?\n
+    किसी sequence में मान मौजूद है या नहीं, यह जांचने के लिए आप कौन सा operator उपयोग करेंगे?`,
+    options: ["is", "not", "==", "in"],
+    answer: "in"
+  },
+  {
+    question: `What is the output of this code?\nvar = "TotalSach"\nprint("s" in var)\n
+    इस कोड का आउटपुट क्या होगा?\nvar = "TotalSach"\nprint("s" in var)`,
+    options: ["True", "False", "Error", "None"],
+    answer: "True"
+  },
+  {
+    question: `What will be the result of: 5 & 3?\n
+    5 & 3 expression का परिणाम क्या होगा?\n(Explanation: 5 is 101 and 3 is 011, so bitwise AND = 001 = 1)`,
+    options: ["15", "1", "2", "0"],
+    answer: "1"
+  },
+  {
+    question: `Which of the following is an assignment operator in Python?\n
+    Python में निम्नलिखित में से कौन सा assignment operator है?`,
+    options: ["==", ":=", "=", "==="],
+    answer: "="
+  },
+  {
+    question: `What is the purpose of conditional statements in Python?\n
+    Python में conditional statements का उद्देश्य क्या है?`,
+    options: [
+      "To define functions",
+      "To import modules",
+      "To control the flow of execution",
+      "To create loops"
+    ],
+    answer: "To control the flow of execution"
+  },
+  {
+    question: `What will be the output of the following code?\nx = 10\nif x < 5:\n    print("Less than 5")\nelse:\n    print("5 or more")\n
+    इस कोड का आउटपुट क्या होगा?\nx = 10\nif x < 5:\n    print("Less than 5")\nelse:\n    print("5 or more")`,
+    options: ["Less than 5", "5 or more", "Error", "None"],
+    answer: "5 or more"
+  },
+  {
+    question: `Which of the following is the correct syntax for an if statement in Python?\n
+    Python में if statement का सही syntax कौन सा है?`,
+    options: [
+      "if (x > 10) then:",
+      "if x > 10:",
+      "if x > 10 then",
+      "if x > 10 {}"
+    ],
+    answer: "if x > 10:"
+  },
+  {
+    question: `Which block will be executed in the following code?\ni = 20\nif i < 15:\n    print("i is smaller than 15")\nelse:\n    print("i is greater than 15")\n
+    निम्नलिखित कोड में कौन सा block execute होगा?\ni = 20\nif i < 15:\n    print("i is smaller than 15")\nelse:\n    print("i is greater than 15")`,
+    options: [
+      "i is smaller than 15",
+      "i is greater than 15",
+      "Error",
+      "Nothing will be printed"
+    ],
+    answer: "i is greater than 15"
+  },
+  {
+    question: `What is the output of this nested-if code?\ni = 10\nif i == 10:\n    if i < 15:\n        print("i is smaller than 15")\n    if i < 12:\n        print("i is smaller than 12 too")\n    else:\n        print("i is greater than 15")\n
+    इस nested-if कोड का आउटपुट क्या होगा?\ni = 10\nif i == 10:\n    if i < 15:\n        print("i is smaller than 15")\n    if i < 12:\n        print("i is smaller than 12 too")\n    else:\n        print("i is greater than 15")`,
+    options: [
+      "i is smaller than 15",
+      "i is smaller than 12 too",
+      "Both A and B",
+      "Error"
+    ],
+    answer: "Both A and B"
+  },
+  {
+    question: `Which structure allows decision-making among multiple conditions in Python?\n
+    Python में कौन सा structure कई conditions के बीच निर्णय लेने की अनुमति देता है?`,
+    options: [
+      "if-else",
+      "nested-if",
+      "while loop",
+      "if-elif-else"
+    ],
+    answer: "if-elif-else"
+  },
+   {
+    question: `In if-elif-else ladder, what happens if the first if condition is true?\n
+    if-elif-else संरचना में, अगर पहली if शर्त true हो तो क्या होता है?`,
+    options: [
+      "All other elif conditions are checked",
+      "Only else is executed",
+      "Only if block is executed",
+      "All blocks are executed"
+    ],
+    answer: "Only if block is executed"
+  },
+  {
+    question: `What will be the output of this program?\ni = 20\nif i == 10:\n    print("i is 10")\nelif i == 15:\n    print("i is 15")\nelif i == 20:\n    print("i is 20")\nelse:\n    print("i is not present")\n
+    इस प्रोग्राम का आउटपुट क्या होगा?\ni = 20\nif i == 10:\n    print("i is 10")\nelif i == 15:\n    print("i is 15")\nelif i == 20:\n    print("i is 20")\nelse:\n    print("i is not present")`,
+    options: ["i is 10", "i is 15", "i is 20", "i is not present"],
+    answer: "i is 20"
+  },
+  {
+    question: `What keyword is used when none of the if or elif conditions are true?\n
+    जब if या elif की कोई शर्त true नहीं होती है तो कौन सा keyword उपयोग होता है?`,
+    options: ["switch", "else", "then", "default"],
+    answer: "else"
+  },
+  {
+    question: `Which of the following will be executed when the if condition is false and there's no else block?\nx = 5\nif x > 10:\n    print("Greater than 10")\n
+    यदि if condition false हो और else block ना हो, तो निम्नलिखित में से क्या execute होगा?\nx = 5\nif x > 10:\n    print("Greater than 10")`,
+    options: ["Nothing", "Syntax error", "Greater than 10", "Zero"],
+    answer: "Nothing"
+  },
+  {
+    question: `Which of the following is not a type of loop in Python?\n
+    Python में निम्नलिखित में से कौन सा loop प्रकार नहीं है?`,
+    options: ["for", "foreach", "while", "nested loop"],
+    answer: "foreach"
+  },
+  {
+    question: `What is the purpose of a loop in Python?\n
+    Python में loop का उद्देश्य क्या है?`,
+    options: [
+      "To define variables",
+      "To import libraries",
+      "To repeat execution of code",
+      "To create classes"
+    ],
+    answer: "To repeat execution of code"
+  },
+  {
+    question: `In a while loop, when is the condition checked?\n
+    while loop में condition कब चेक होती है?`,
+    options: [
+      "After executing the loop body",
+      "Before executing the loop body",
+      "Only once",
+      "Randomly"
+    ],
+    answer: "Before executing the loop body"
+  },
+  {
+    question: `How many times will this loop execute?\ncount = 1\nwhile count <= 3:\n    print(count)\n    count += 1\n
+    यह loop कितनी बार execute होगा?\ncount = 1\nwhile count <= 3:\n    print(count)\n    count += 1`,
+    options: ["1", "2", "3", "Infinite"],
+    answer: "3"
+  },
+  {
+    question: `What is the output of the following code?\nfor i in [1, 2, 3]:\n    print(i * 2)\n
+    निम्नलिखित कोड का आउटपुट क्या होगा?\nfor i in [1, 2, 3]:\n    print(i * 2)`,
+    options: ["1 2 3", "2 4 6", "2 3 4", "Error"],
+    answer: "2 4 6"
+  },
+  {
+    question: `What type of loop is this an example of?\nfor x in range(5):\n    print(x)\n
+    यह किस प्रकार का loop है?\nfor x in range(5):\n    print(x)`,
+    options: ["while loop", "do-while loop", "for loop", "infinite loop"],
+    answer: "for loop"
+  },
+  {
+    question: `What is a nested loop?\n
+    nested loop क्या होता है?`,
+    options: [
+      "A loop with break statement",
+      "A loop inside a list",
+      "A loop inside another loop",
+      "A loop that never ends"
+    ],
+    answer: "A loop inside another loop"
+  },
+  {
+    question: `Which control statement terminates the loop execution?\n
+    कौन सा control statement loop execution को terminate करता है?`,
+    options: ["continue", "break", "pass", "return"],
+    answer: "break"
+  },
+    {
+    question: `What does the continue statement do in Python?\n
+    Python में continue स्टेटमेंट क्या करता है?`,
+    options: [
+      "Stops the loop entirely",
+      "Skips the current iteration",
+      "Exits the program",
+      "Repeats the loop from beginning"
+    ],
+    answer: "Skips the current iteration"
+  },
+  {
+    question: `Which statement is used when no action is to be taken, but a statement is syntactically required?\n
+    जब कोई कार्रवाई नहीं करनी होती लेकिन सिंटैक्टिकली स्टेटमेंट चाहिए, तो कौन सा उपयोग होता है?`,
+    options: ["break", "continue", "skip", "pass"],
+    answer: "pass"
+  },
+  {
+    question: `Which of the following is the correct syntax for a for loop in Python?\n
+    Python में for loop का सही सिंटैक्स कौन सा है?`,
+    options: [
+      "for i to range(5):",
+      "for (i = 0; i < 5; i++)",
+      "for i in range(5):",
+      "foreach i in range(5):"
+    ],
+    answer: "for i in range(5):"
+  },
+  {
+    question: `How is a sequence such as a list or tuple accessed in a loop?\n
+    लूप में लिस्ट या ट्यूपल जैसी sequence को कैसे access किया जाता है?`,
+    options: [
+      "Using for-in loop",
+      "Using while loop only",
+      "Using switch-case",
+      "Using if statement"
+    ],
+    answer: "Using for-in loop"
+  },
+  {
+    question: `Which operator is used to check the identity of two objects in Python?\n
+    Python में दो ऑब्जेक्ट्स की पहचान जांचने के लिए कौन सा ऑपरेटर उपयोग होता है?`,
+    options: ["==", "is", "in", "="],
+    answer: "is"
+  },
+  {
+    question: `What will be the output of: print(5 // 2)?\n
+    print(5 // 2) का आउटपुट क्या होगा?`,
+    options: ["2.5", "2", "3", "Error"],
+    answer: "2"
+  },
+  {
+    question: `Which operator is used to assign a value to a variable?\n
+    किसी वेरिएबल को मान देने के लिए कौन सा ऑपरेटर उपयोग होता है?`,
+    options: ["==", "=", ":=", "!="],
+    answer: "="
+  },
+  {
+    question: `Which statement correctly represents an if-else structure in Python?\n
+    Python में if-else संरचना का सही स्वरूप कौन सा है?`,
+    options: [
+      `if condition:\n    statement1\nelse:\n    statement2`,
+      `if condition\n    statement1\nelse\n    statement2`,
+      `if condition then statement1 else statement2`,
+      `None of these`
+    ],
+    answer: `if condition:\n    statement1\nelse:\n    statement2`
+  },
+  {
+    question: `What will be printed by the following code?\ni = 10\nif i > 5:\n    print("Greater")\nelse:\n    print("Smaller")\n
+    निम्नलिखित कोड का आउटपुट क्या होगा?\ni = 10\nif i > 5:\n    print("Greater")\nelse:\n    print("Smaller")`,
+    options: ["Greater", "Smaller", "Nothing", "Error"],
+    answer: "Greater"
+  },
+  {
+    question: `What does the continue statement do in a loop?\n
+    लूप में continue स्टेटमेंट क्या करता है?`,
+    options: [
+      "Exits the loop completely",
+      "Skips the current iteration and moves to the next iteration",
+      "Pauses the loop",
+      "Restarts the loop from the beginning"
+    ],
+    answer: "Skips the current iteration and moves to the next iteration"
+  },
+  {
+    question: `What is the output of this code?\nfor i in range(3):\n    if i == 1:\n        break\n    print(i)\n
+    इस कोड का आउटपुट क्या होगा?\nfor i in range(3):\n    if i == 1:\n        break\n    print(i)`,
+    options: ["0 1 2", "0 1", "0", "No output"],
+    answer: "0"
+  },
+  {
+    question: `Which of the following loops is guaranteed to execute at least once?\n
+    निम्नलिखित में से कौन सा लूप कम से कम एक बार जरूर execute होता है?`,
+    options: [
+      "for loop",
+      "while loop",
+      "do-while loop",
+      "None of the above"
+    ],
+    answer: "None of the above"
+  },
+    {
+    question: `Which of the following is NOT a valid way to create a string in Python?\n
+    Python में स्ट्रिंग बनाने का कौन-सा तरीका सही नहीं है?`,
+    options: ["'Hello'", `"Hello"`, `'''Hello'''`, "#Hello"],
+    answer: "#Hello"
+  },
+  {
+    question: `What will be the output of this code?\ns = "Python"\nprint(s[1:4])\n
+    इस कोड का आउटपुट क्या होगा?\ns = "Python"\nprint(s[1:4])`,
+    options: ["Pyt", "yth", "yth", "yth"],
+    answer: "yth"
+  },
+  {
+    question: `Which of the following statements is TRUE about Python lists?\n
+    Python लिस्ट्स के बारे में कौन-सी बात सही है?`,
+    options: [
+      "Lists are immutable",
+      "Lists are ordered and changeable",
+      "Lists cannot contain duplicate values",
+      "Lists use curly braces {}"
+    ],
+    answer: "Lists are ordered and changeable"
+  },
+  {
+    question: `How do you add an item to the end of a list mylist?\n
+    mylist में एक आइटम अंत में जोड़ने के लिए क्या करें?`,
+    options: [
+      "mylist.add(item)",
+      "mylist.append(item)",
+      "mylist.insert(item)",
+      "mylist.addEnd(item)"
+    ],
+    answer: "mylist.append(item)"
+  },
+  {
+    question: `Which of the following is TRUE about tuples in Python?\n
+    Python में ट्यूपल्स के बारे में कौन-सी बात सही है?`,
+    options: [
+      "Tuples are mutable",
+      "Tuples are unordered",
+      "Tuples are immutable and ordered",
+      "Tuples allow duplicate values but are mutable"
+    ],
+    answer: "Tuples are immutable and ordered"
+  },
+  {
+    question: `Which property does NOT apply to Python sets?\n
+    Python सेट्स के बारे में कौन-सी बात सही नहीं है?`,
+    options: [
+      "Sets are unordered",
+      "Sets allow duplicate items",
+      "Sets are mutable but their items are unchangeable",
+      "Sets are defined with curly braces {}"
+    ],
+    answer: "Sets allow duplicate items"
+  },
+  {
+    question: `What will be the output of this code?\ns = {"apple", "banana", "apple"}\nprint(len(s))\n
+    इस कोड का आउटपुट क्या होगा?\ns = {"apple", "banana", "apple"}\nprint(len(s))`,
+    options: ["3", "2", "1", "Error"],
+    answer: "2"
+  },
+  {
+    question: `Python में डिक्शनरी किस फॉर्मेट में डेटा संग्रहित करती है?\n
+    Python stores data in dictionaries in which format?`,
+    options: ["List", "Tuple", "key:value pair", "set"],
+    answer: "key:value pair"
+  },
+  {
+    question: `निम्नलिखित में से कौन-सा डिक्शनरी बनाने का सही तरीका है?\n
+    Which is the correct way to create a dictionary?`,
+    options: [
+      `mydict = ( "brand": "Ford", "year": 1964 )`,
+      `mydict = [ "brand": "Ford", "year": 1964 ]`,
+      `mydict = { "brand": "Ford", "year": 1964 }`,
+      `mydict = < "brand": "Ford", "year": 1964 >`
+    ],
+    answer: `mydict = { "brand": "Ford", "year": 1964 }`
+  },
+  {
+    question: `Python 3.7 के बाद डिक्शनरी का कौन-सा गुण जोड़ा गया?\n
+    Which feature was added to dictionaries in Python 3.7?`,
+    options: ["Immutable", "Indexed", "Ordered", "Static"],
+    answer: "Ordered"
+  },
+  {
+    question: `डिक्शनरी में डुप्लिकेट keys का क्या होता है?\n
+    What happens when duplicate keys are present in a dictionary?`,
+    options: [
+      "Error आता है",
+      "डुप्लिकेट key को allow करता है",
+      "आखिरी key:value को ही रखता है",
+      "पहले वाले को रखता है"
+    ],
+    answer: "आखिरी key:value को ही रखता है"
+  },
+  {
+    question: `print(thisdict["model"]) क्या करता है?\n
+    What does print(thisdict["model"]) do?`,
+    options: [
+      "डिक्शनरी को डिलीट करता है",
+      `"model" key का value प्रिंट करता है`,
+      "डिक्शनरी का साइज दिखाता है",
+      "Error देता है"
+    ],
+    answer: `"model" key का value प्रिंट करता है`
+  },
+  {
+    question: `डिक्शनरी में नया आइटम जोड़ने के लिए कौन-सा सिंटैक्स सही है?\n
+    Which syntax is correct to add a new item to a dictionary?`,
+    options: [
+      `thisdict.append("color", "red")`,
+      `thisdict["color"] = "red"`,
+      `thisdict.add("color": "red")`,
+      `thisdict.insert("color", "red")`
+    ],
+    answer: `thisdict["color"] = "red"`
+  },
+  {
+    question: `डिक्शनरी से किसी key:value pair को हटाने के लिए कौन-सा method इस्तेमाल होता है?\n
+    Which method is used to remove a key:value pair from a dictionary?`,
+    options: ["remove()", "discard()", "pop()", "delete()"],
+    answer: "pop()"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

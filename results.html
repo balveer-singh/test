@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz Results</title>
+<style>
+  body {
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    margin: 0; padding: 40px 20px;
+    color: #222;
+    display: flex;
+    justify-content: center;
+  }
+  .results-container {
+    background: white;
+    max-width: 700px;
+    width: 100%;
+    border-radius: 12px;
+    padding: 30px 40px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  }
+  h1 {
+    color: #364fc7;
+    margin-bottom: 20px;
+  }
+  .score {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 30px;
+  }
+  .incorrect-list {
+    list-style-type: none;
+    padding: 0;
+  }
+  .incorrect-list li {
+    margin-bottom: 25px;
+    border-left: 5px solid #f03e3e;
+    padding-left: 15px;
+    background: #ffe3e3;
+    border-radius: 5px;
+  }
+  .incorrect-list li strong {
+    color: #c92a2a;
+  }
+  .your-answer {
+    color: #d6336c;
+  }
+  .correct-answer {
+    color: #2f9e44;
+  }
+  button {
+    margin-top: 30px;
+    background-color: #5964ff;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 14px 30px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+</style>
+</head>
+<body>
+<div class="results-container" role="main" aria-label="Quiz results">
+  <h1>Quiz Results</h1>
+  <div class="score" id="score"></div>
+  <h2>Incorrect Questions:</h2>
+  <ul class="incorrect-list" id="incorrectList"></ul>
+  <button onclick="goBack()">Take Quiz Again</button>
+</div>
+
+<script>
+  // Read from sessionStorage
+  const score = sessionStorage.getItem('quizScore');
+  const total = sessionStorage.getItem('quizTotal');
+  const incorrect = JSON.parse(sessionStorage.getItem('quizIncorrect')) || [];
+
+  document.getElementById('score').innerText = `You scored ${score} out of ${total}.`;
+
+  const list = document.getElementById('incorrectList');
+  if(incorrect.length === 0) {
+    list.innerHTML = '<li>Congratulations! All answers are correct.</li>';
+  } else {
+    incorrect.forEach(item => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <p><strong>Question:</strong> ${item.question}</p>
+        <p><span class="your-answer"><strong>Your answer:</strong> ${item.yourAnswer}</span></p>
+        <p><span class="correct-answer"><strong>Correct answer:</strong> ${item.correctAnswer}</span></p>
+      `;
+      list.appendChild(li);
+    });
+  }
+
+  function goBack() {
+    // Clear the saved results (optional)
+    sessionStorage.clear();
+    // Go back to the quiz page
+    window.location.href = 'index.html';
+  }
+</script>
+</body>
+</html>

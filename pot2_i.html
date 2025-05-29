@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+   {
+    question: "मनोविज्ञान का अर्थ क्या है?",
+    options: [
+      "A) आत्मा का अध्ययन",
+      "B) मानव और पशुओं के व्यवहार का वैज्ञानिक अध्ययन",
+      "C) शिक्षण विधियों का अध्ययन",
+      "D) केवल मानव व्यवहार का अध्ययन"
+    ],
+    answer: "B) मानव और पशुओं के व्यवहार का वैज्ञानिक अध्ययन"
+  },
+  {
+    question: "शैक्षिक मनोविज्ञान किसका अध्ययन करता है?",
+    options: [
+      "A) शिक्षकों के व्यवहार का",
+      "B) कक्षा में शिक्षण की विधियों का",
+      "C) सीखने की प्रक्रिया और शिक्षण वातावरण का",
+      "D) केवल छात्रों की मानसिकता का"
+    ],
+    answer: "C) सीखने की प्रक्रिया और शिक्षण वातावरण का"
+  },
+  {
+    question: "\"शैक्षिक मनोविज्ञान वह शाखा है जो शिक्षण और अधिगम से संबंधित है।\" यह परिभाषा किसने दी थी?",
+    options: [
+      "A) क्रो और क्रो",
+      "B) स्किनर",
+      "C) वुडवर्थ",
+      "D) विलियम जेम्स"
+    ],
+    answer: "B) स्किनर"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा शैक्षिक मनोविज्ञान का स्वभाव (Nature) नहीं है?",
+    options: [
+      "A) यह एक व्यावहारिक (Applied) विज्ञान है",
+      "B) यह केवल अध्यापकों के लिए उपयोगी है",
+      "C) यह वैज्ञानिक विधियों का उपयोग करता है",
+      "D) यह शिक्षण और सीखने के सिद्धांत प्रदान करता है"
+    ],
+    answer: "B) यह केवल अध्यापकों के लिए उपयोगी है"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा शिक्षण का एक सिद्धांत (Principle of Teaching) नहीं है?",
+    options: [
+      "A) प्रेरणा का सिद्धांत",
+      "B) रुचि का सिद्धांत",
+      "C) परीक्षा का सिद्धांत",
+      "D) जीवन से जोड़ने का सिद्धांत"
+    ],
+    answer: "C) परीक्षा का सिद्धांत"
+  },
+  {
+    question: "कौन-सा सिद्धांत ‘सीखने के लिए क्रियाशीलता’ (Learning by Doing) पर आधारित है?",
+    options: [
+      "A) फ्रॉबेल का किंडरगार्टन सिद्धांत",
+      "B) प्लेटो का नैतिक शिक्षा सिद्धांत",
+      "C) स्किनर का व्यवहारवादी सिद्धांत",
+      "D) पियाजे का संज्ञानात्मक विकास सिद्धांत"
+    ],
+    answer: "A) फ्रॉबेल का किंडरगार्टन सिद्धांत"
+  },
+  {
+    question: "कक्षा में अनुशासन बनाए रखने के लिए सबसे प्रभावी तरीका क्या है?",
+    options: [
+      "A) कठोर दंड देना",
+      "B) छात्रों को नजरअंदाज करना",
+      "C) शिक्षण को रुचिकर और प्रेरणादायक बनाना",
+      "D) छात्रों को डराना"
+    ],
+    answer: "C) शिक्षण को रुचिकर और प्रेरणादायक बनाना"
+  },
+  {
+    question: "शिक्षण प्रक्रिया में ‘पूर्वज्ञान’ (Prior Knowledge) का क्या महत्व है?",
+    options: [
+      "A) यह नई सीखने की प्रक्रिया को आसान बनाता है",
+      "B) यह सीखने में बाधा डालता है",
+      "C) इसका कोई महत्व नहीं होता",
+      "D) यह केवल छोटे बच्चों के लिए उपयोगी है"
+    ],
+    answer: "A) यह नई सीखने की प्रक्रिया को आसान बनाता है"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा प्रभावी शिक्षण का प्रमुख तत्व नहीं है?",
+    options: [
+      "A) स्पष्ट उद्देश्य (Clear Objectives)",
+      "B) कक्षा अनुशासन",
+      "C) शिक्षक की शारीरिक बनावट",
+      "D) शिक्षण विधियों का उचित चयन"
+    ],
+    answer: "C) शिक्षक की शारीरिक बनावट"
+  },
+  {
+    question: "\"सीखना एक सतत प्रक्रिया है जो जन्म से मृत्यु तक चलती रहती है।\" यह कथन किसका है?",
+    options: [
+      "A) स्किनर",
+      "B) क्रो और क्रो",
+      "C) थार्नडाइक",
+      "D) पावलॉव"
+    ],
+    answer: "B) क्रो और क्रो"
+  },
+  {
+    question: "सीखने की परिभाषा क्या है?",
+    options: [
+      "A) नए ज्ञान, कौशल और व्यवहार को प्राप्त करना या मौजूदा ज्ञान में संशोधन करना",
+      "B) केवल पुस्तकों से जानकारी प्राप्त करना",
+      "C) परीक्षा में अच्छे अंक प्राप्त करना",
+      "D) याद करने की प्रक्रिया"
+    ],
+    answer: "A) नए ज्ञान, कौशल और व्यवहार को प्राप्त करना या मौजूदा ज्ञान में संशोधन करना"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा सीखने को प्रभावित करने वाला कारक नहीं है?",
+    options: [
+      "A) रुचि (Interest)",
+      "B) प्रेरणा (Motivation)",
+      "C) लिंग (Gender)",
+      "D) बुद्धिमत्ता (Intelligence)"
+    ],
+    answer: "C) लिंग (Gender)"
+  },
+  {
+    question: "\"हम करने से सीखते हैं\" किस सिद्धांत से संबंधित है?",
+    options: [
+      "A) गतिविधि सिद्धांत (Principle of Activity)",
+      "B) अभ्यास सिद्धांत (Principle of Practice)",
+      "C) प्रेरणा सिद्धांत (Principle of Motivation)",
+      "D) पूर्व अनुभव सिद्धांत (Principle of Previous Experience)"
+    ],
+    answer: "A) गतिविधि सिद्धांत (Principle of Activity)"
+  },
+    {
+    question: "सीखने की प्रक्रिया में रुचि क्यों आवश्यक है?",
+    options: [
+      "A) यह ध्यान केंद्रित करने में मदद करता है",
+      "B) यह सीखने को कठिन बनाता है",
+      "C) यह शिक्षक के लिए आवश्यक नहीं है",
+      "D) यह केवल परीक्षा के समय आवश्यक है"
+    ],
+    answer: "A) यह ध्यान केंद्रित करने में मदद करता है"
+  },
+  {
+    question: "\"सीखना पिछले अनुभवों पर आधारित होता है\" यह किस सिद्धांत से संबंधित है?",
+    options: [
+      "A) रुचि का सिद्धांत (Principle of Interest)",
+      "B) प्रेरणा का सिद्धांत (Principle of Motivation)",
+      "C) पूर्व अनुभव का सिद्धांत (Principle of Previous Experience)",
+      "D) अधिगम का सिद्धांत (Principle of Learning)"
+    ],
+    answer: "C) पूर्व अनुभव का सिद्धांत (Principle of Previous Experience)"
+  },
+  {
+    question: "कौन-सा कथन सही है?",
+    options: [
+      "A) सीखना केवल औपचारिक शिक्षा में होता है",
+      "B) सीखना जन्म से मृत्यु तक की प्रक्रिया है",
+      "C) सीखना केवल स्कूलों में संभव है",
+      "D) सीखना केवल पुस्तकों से होता है"
+    ],
+    answer: "B) सीखना जन्म से मृत्यु तक की प्रक्रिया है"
+  },
+  {
+    question: "प्रभावी शिक्षण के लिए निम्नलिखित में से कौन-सा महत्वपूर्ण नहीं है?",
+    options: [
+      "A) शिक्षक का ज्ञान",
+      "B) शिक्षक का धैर्य",
+      "C) शिक्षक की व्यक्तिगत रुचि",
+      "D) शिक्षक की शारीरिक बनावट"
+    ],
+    answer: "D) शिक्षक की शारीरिक बनावट"
+  },
+  {
+    question: "जब कोई शिक्षार्थी अपनी नई सीखी गई जानकारी को तुरंत उपयोग करता है, तो उसे क्या कहा जाता है?",
+    options: [
+      "A) प्रेरणा",
+      "B) सीखने की निरंतरता",
+      "C) सीखने की पुनरावृत्ति",
+      "D) सीखने का अनुप्रयोग"
+    ],
+    answer: "D) सीखने का अनुप्रयोग"
+  },
+  {
+    question: "कौन-सा सिद्धांत कहता है कि सीखने की प्रक्रिया को वास्तविक जीवन के उदाहरणों से जोड़ा जाना चाहिए?",
+    options: [
+      "A) वास्तविकता का सिद्धांत (Principle of Reality)",
+      "B) रुचि का सिद्धांत (Principle of Interest)",
+      "C) अनुप्रयोग का सिद्धांत (Principle of Application)",
+      "D) पूर्व अनुभव का सिद्धांत (Principle of Previous Experience)"
+    ],
+    answer: "C) अनुप्रयोग का सिद्धांत (Principle of Application)"
+  },
+  {
+    question: "\"प्रेरणा\" का शिक्षा में क्या महत्व है?",
+    options: [
+      "A) यह छात्रों को सीखने के लिए प्रोत्साहित करता है",
+      "B) यह केवल परीक्षा के समय उपयोगी होता है",
+      "C) यह सीखने की प्रक्रिया में कोई भूमिका नहीं निभाता",
+      "D) यह केवल कमजोर छात्रों के लिए आवश्यक है"
+    ],
+    answer: "A) यह छात्रों को सीखने के लिए प्रोत्साहित करता है"
+  },
+  {
+    question: "लगातार अभ्यास (Repetition) का मुख्य लाभ क्या है?",
+    options: [
+      "A) यह थकावट लाता है",
+      "B) यह सीखने की गति को धीमा कर देता है",
+      "C) यह सटीकता और गति को बढ़ाता है",
+      "D) यह ज्ञान को हटा देता है"
+    ],
+    answer: "C) यह सटीकता और गति को बढ़ाता है"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा सीखने की प्रक्रिया को बाधित कर सकता है?",
+    options: [
+      "A) रुचि की कमी",
+      "B) नकारात्मक दृष्टिकोण",
+      "C) उचित मार्गदर्शन की अनुपस्थिति",
+      "D) उपरोक्त सभी"
+    ],
+    answer: "D) उपरोक्त सभी"
+  },
+  {
+    question: "कौन-सा सिद्धांत कहता है कि शुरुआती सफलता प्रभावी सीखने की संभावना को बढ़ा देती है?",
+    options: [
+      "A) प्रेरणा का सिद्धांत (Principle of Motivation)",
+      "B) सफलता का सिद्धांत (Principle of Success)",
+      "C) रुचि का सिद्धांत (Principle of Interest)",
+      "D) पूर्व अनुभव का सिद्धांत (Principle of Previous Experience)"
+    ],
+    answer: "B) सफलता का सिद्धांत (Principle of Success)"
+  },
+  {
+    question: "सीखने की गति को कौन-से कारक प्रभावित करते हैं?",
+    options: [
+      "A) मानसिक स्तर",
+      "B) सामाजिक और पारिवारिक पृष्ठभूमि",
+      "C) शिक्षक की शिक्षण पद्धति",
+      "D) उपरोक्त सभी"
+    ],
+    answer: "D) उपरोक्त सभी"
+  },
+  {
+    question: "प्रेरणा कितने प्रकार की होती है?",
+    options: [
+      "A) केवल एक",
+      "B) दो - आंतरिक (Intrinsic) और बाह्य (Extrinsic)",
+      "C) तीन",
+      "D) चार"
+    ],
+    answer: "B) दो - आंतरिक (Intrinsic) और बाह्य (Extrinsic)"
+  },
+  {
+    question: "विकासात्मक कार्य (Developmental Tasks) सिद्धांत किसने दिया था?",
+    options: [
+      "A) जॉन डेवी",
+      "B) थॉर्नडाइक",
+      "C) रोबर्ट हेविगहर्स्ट",
+      "D) पावलॉव"
+    ],
+    answer: "C) रोबर्ट हेविगहर्स्ट"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा हेविगहर्स्ट द्वारा प्रस्तावित विकासात्मक चरण नहीं है?",
+    options: [
+      "A) शैशवावस्था और प्रारंभिक बचपन (Infancy & Early Childhood)",
+      "B) वृद्धावस्था (Old Age)",
+      "C) किशोरावस्था (Adolescence)",
+      "D) पूर्व-किशोरावस्था (Pre-Adolescence)"
+    ],
+    answer: "D) पूर्व-किशोरावस्था (Pre-Adolescence)"
+  },
+  {
+    question: "कौन-सा कारक सीखने की प्रक्रिया को सबसे अधिक प्रभावित करता है?",
+    options: [
+      "A) अच्छी कक्षा व्यवस्था",
+      "B) छात्रों की रुचि और प्रेरणा",
+      "C) पाठ्यपुस्तकों की गुणवत्ता",
+      "D) परीक्षा का दबाव"
+    ],
+    answer: "B) छात्रों की रुचि और प्रेरणा"
+  },
+  {
+    question: "कौन-सा कथन सही है?",
+    options: [
+      "A) सभी छात्र समान गति से सीखते हैं",
+      "B) छात्रों की सीखने की क्षमता अलग-अलग होती है",
+      "C) केवल बुद्धिमान छात्र ही सीख सकते हैं",
+      "D) सीखने के लिए शिक्षक की कोई भूमिका नहीं होती"
+    ],
+    answer: "B) छात्रों की सीखने की क्षमता अलग-अलग होती है"
+  },
+  {
+    question: "आत्म-मूल्यांकन (Self-Evaluation) क्यों आवश्यक है?",
+    options: [
+      "A) यह छात्रों को अपने प्रदर्शन को सुधारने में मदद करता है",
+      "B) यह केवल औपचारिकता होती है",
+      "C) यह केवल कमजोर छात्रों के लिए होता है",
+      "D) यह शिक्षकों के लिए आवश्यक नहीं होता"
+    ],
+    answer: "A) यह छात्रों को अपने प्रदर्शन को सुधारने में मदद करता है"
+  },
+  {
+    question: "सीखने के तीन मूलभूत नियम किसके द्वारा प्रतिपादित किए गए थे?",
+    options: [
+      "(A) पावलोव",
+      "(B) थॉर्नडाइक",
+      "(C) स्किनर",
+      "(D) कोहलर"
+    ],
+    answer: "(B) थॉर्नडाइक"
+  },
+  {
+    question: "थॉर्नडाइक द्वारा प्रतिपादित 'अभ्यास का नियम' (Law of Exercise) का मुख्य अर्थ क्या है?",
+    options: [
+      "(A) अभ्यास से सीखने की क्षमता घटती है",
+      "(B) लगातार अभ्यास से सीखने की क्षमता बढ़ती है",
+      "(C) अभ्यास का सीखने से कोई संबंध नहीं होता",
+      "(D) सीखने के लिए अभ्यास की आवश्यकता नहीं होती"
+    ],
+    answer: "(B) लगातार अभ्यास से सीखने की क्षमता बढ़ती है"
+  },
+  {
+    question: "'प्रभाव का नियम' (Law of Effect) किस सिद्धांत से संबंधित है?",
+    options: [
+      "(A) केवल सकारात्मक अनुभव सीखने को प्रभावित करता है",
+      "(B) केवल नकारात्मक अनुभव सीखने को प्रभावित करता है",
+      "(C) सकारात्मक और नकारात्मक दोनों प्रकार के अनुभव सीखने को प्रभावित करते हैं",
+      "(D) सीखना अनुभवों पर निर्भर नहीं करता"
+    ],
+    answer: "(C) सकारात्मक और नकारात्मक दोनों प्रकार के अनुभव सीखने को प्रभावित करते हैं"
+  },
+  {
+    question: "‘क्लासिकल कंडीशनिंग सिद्धांत’ (Classical Conditioning Theory) किसने दिया था?",
+    options: [
+      "(A) पावलोव",
+      "(B) थॉर्नडाइक",
+      "(C) स्किनर",
+      "(D) वॉटसन"
+    ],
+    answer: "(A) पावलोव"
+  },
+  {
+    question: "इंसाइट लर्निंग (Insight Learning) का प्रतिपादन किसने किया था?",
+    options: [
+      "(A) कोहलर",
+      "(B) स्किनर",
+      "(C) पावलोव",
+      "(D) थॉर्नडाइक"
+    ],
+    answer: "(A) कोहलर"
+  },
+  {
+    question: "‘ऑपेरेंट कंडीशनिंग’ (Operant Conditioning) सिद्धांत किसने प्रतिपादित किया?",
+    options: [
+      "(A) पावलोव",
+      "(B) स्किनर",
+      "(C) कोहलर",
+      "(D) थॉर्नडाइक"
+    ],
+    answer: "(B) स्किनर"
+  },
+  {
+    question: "सीखने की प्रक्रिया में इंद्रियों की भूमिका क्या होती है?",
+    options: [
+      "(A) सीखने की प्रक्रिया में इंद्रियों की कोई भूमिका नहीं होती",
+      "(B) सभी इंद्रियां समान रूप से काम करती हैं",
+      "(C) जितनी अधिक इंद्रियां शामिल होती हैं, सीखना उतना ही प्रभावी होता है",
+      "(D) केवल देखने की इंद्रिय महत्वपूर्ण होती है"
+    ],
+    answer: "(C) जितनी अधिक इंद्रियां शामिल होती हैं, सीखना उतना ही प्रभावी होता है"
+  },
+  {
+    question: "‘नकारात्मक पुनर्बलन’ (Negative Reinforcement) का क्या अर्थ है?",
+    options: [
+      "(A) सजा देना",
+      "(B) एक अप्रिय स्थिति को हटाकर सीखने को मजबूत करना",
+      "(C) सीखने की प्रक्रिया को रोकना",
+      "(D) अनावश्यक अभ्यास कराना"
+    ],
+    answer: "(B) एक अप्रिय स्थिति को हटाकर सीखने को मजबूत करना"
+  },
+  {
+    question: "‘अनुकरण सिद्धांत’ (Theory of Imitation) किसके द्वारा प्रतिपादित किया गया था?",
+    options: [
+      "(A) अल्बर्ट बंडुरा",
+      "(B) थॉर्नडाइक",
+      "(C) स्किनर",
+      "(D) कोहलर"
+    ],
+    answer: "(A) अल्बर्ट बंडुरा"
+  },
+  {
+    question: "व्यक्ति में सीखने की व्यक्तिगत भिन्नताओं का मुख्य कारण क्या है?",
+    options: [
+      "(A) केवल पर्यावरण",
+      "(B) केवल अनुवांशिकता",
+      "(C) केवल आयु",
+      "(D) अनुवांशिकता और पर्यावरण दोनों"
+    ],
+    answer: "(D) अनुवांशिकता और पर्यावरण दोनों"
+  },
+   {
+    question: "प्रेरणा का अर्थ क्या है?",
+    options: [
+      "A) केवल बाहरी प्रभाव",
+      "B) आंतरिक और बाहरी दोनों कारक जो किसी व्यक्ति के व्यवहार को प्रभावित करते हैं",
+      "C) केवल धन प्राप्त करने की इच्छा",
+      "D) केवल पुरस्कार प्राप्त करना"
+    ],
+    answer: "B) आंतरिक और बाहरी दोनों कारक जो किसी व्यक्ति के व्यवहार को प्रभावित करते हैं"
+  },
+  {
+    question: "\"प्रेरणा\" शब्द की उत्पत्ति किस शब्द से हुई है?",
+    options: [
+      "A) Emotion",
+      "B) Motion",
+      "C) Motive",
+      "D) Movement"
+    ],
+    answer: "C) Motive"
+  },
+  {
+    question: "प्रेरणा के कितने प्रकार होते हैं?",
+    options: [
+      "A) 1",
+      "B) 2",
+      "C) 3",
+      "D) 4"
+    ],
+    answer: "B) 2 (आंतरिक प्रेरणा और बाह्य प्रेरणा)"
+  },
+  {
+    question: "आंतरिक प्रेरणा का मुख्य स्रोत क्या है?",
+    options: [
+      "A) पुरस्कार और प्रशंसा",
+      "B) स्वयं की रुचि और ज्ञान प्राप्ति की इच्छा",
+      "C) परीक्षा में अच्छे अंक प्राप्त करना",
+      "D) माता-पिता का दबाव"
+    ],
+    answer: "B) स्वयं की रुचि और ज्ञान प्राप्ति की इच्छा"
+  },
+  {
+    question: "बाह्य प्रेरणा किस पर निर्भर करती है?",
+    options: [
+      "A) व्यक्तिगत रुचि",
+      "B) बाहरी कारकों जैसे पुरस्कार, प्रशंसा और दंड",
+      "C) आत्म-संतोष",
+      "D) सामाजिक व्यवहार"
+    ],
+    answer: "B) बाहरी कारकों जैसे पुरस्कार, प्रशंसा और दंड"
+  },
+  {
+    question: "अधिगम प्रक्रिया में \"सुदृढीकरण\" (Reinforcement) का क्या कार्य है?",
+    options: [
+      "A) सीखने की गति को धीमा करना",
+      "B) अधिगम प्रक्रिया को प्रभावित करना",
+      "C) प्रेरणा को कम करना",
+      "D) सीखने की प्रक्रिया को रोकना"
+    ],
+    answer: "B) अधिगम प्रक्रिया को प्रभावित करना"
+  },
+  {
+    question: "यदि कोई विद्यार्थी बार-बार असफल होता है, तो उसे क्या महसूस होगा?",
+    options: [
+      "A) अधिक प्रेरणा",
+      "B) सीखने की इच्छा",
+      "C) असफलता की आशंका",
+      "D) आत्मविश्वास बढ़ेगा"
+    ],
+    answer: "C) असफलता की आशंका"
+  },
+  {
+    question: "एक शिक्षक के लिए सबसे प्रभावी प्रेरणा तकनीक कौन सी हो सकती है?",
+    options: [
+      "A) कक्षा में सजा देना",
+      "B) छात्रों की रुचि को समझना और उन्हें प्रोत्साहित करना",
+      "C) केवल अच्छे छात्रों को पढ़ाना",
+      "D) कठिन विषयों को अनदेखा करना"
+    ],
+    answer: "B) छात्रों की रुचि को समझना और उन्हें प्रोत्साहित करना"
+  },
+  {
+    question: "शिक्षक का कौन सा कार्य शिक्षार्थियों की प्रेरणा बढ़ाने में सहायक होता है?",
+    options: [
+      "A) अनुशासनहीनता को बढ़ावा देना",
+      "B) शिक्षण को रोचक और प्रभावी बनाना",
+      "C) केवल पाठ्यपुस्तक पढ़ाना",
+      "D) छात्रों को अनदेखा करना"
+    ],
+    answer: "B) शिक्षण को रोचक और प्रभावी बनाना"
+  },
+  {
+    question: "अधिगम प्रक्रिया में कौन सा कारक सबसे अधिक प्रभाव डालता है?",
+    options: [
+      "A) शिक्षक की आयु",
+      "B) शिक्षक की वेशभूषा",
+      "C) प्रेरणा और सुदृढीकरण",
+      "D) कक्षा का रंग"
+    ],
+    answer: "C) प्रेरणा और सुदृढीकरण"
+  }
+  ];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

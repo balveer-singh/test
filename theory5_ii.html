@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: "Which property makes a sheet very hidden in VBA?",
+    options: [
+      "xISheetVisible",
+      "xISheetHidden",
+      "xISheetNone",
+      "xISheetVeryHidden"
+    ],
+    answer: "xISheetVeryHidden"
+  },
+  {
+    question: "Which object is used to refer to selected cells in VBA?",
+    options: [
+      "Sheet1",
+      "Range",
+      "Workbook",
+      "Selection"
+    ],
+    answer: "Selection"
+  },
+  {
+    question: "Which command shows a message box in VBA?",
+    options: [
+      "MsgText",
+      "TextBox",
+      "MsgBox",
+      "AlertBox"
+    ],
+    answer: "MsgBox"
+  },
+  {
+    question: "What will the code Selection.Cells.UnMerge do?",
+    options: [
+      "Merge cells",
+      "Format cells",
+      "Unmerge all selected merged cells",
+      "Delete cells"
+    ],
+    answer: "Unmerge all selected merged cells"
+  },
+  {
+    question: "How can you copy a macro from one workbook to another?",
+    options: [
+      "Export/Import the module",
+      "Save as CSV",
+      "Email the workbook",
+      "Copy-paste cells"
+    ],
+    answer: "Export/Import the module"
+  },
+  {
+    question: "To delete a macro, you can use:",
+    options: [
+      "The Format tab",
+      "VBA Editor or Macro dialog box",
+      "View tab",
+      "Insert tab"
+    ],
+    answer: "VBA Editor or Macro dialog box"
+  },
+  {
+    question: "What dialog box appears when changing macro security?",
+    options: [
+      "Save As",
+      "Trust Center",
+      "Macro Recorder",
+      "Print Setup"
+    ],
+    answer: "Trust Center"
+  },
+  {
+    question: "What happens when you click “Enable Content” in the security warning bar?",
+    options: [
+      "Macros are disabled",
+      "VBA editor opens",
+      "Macros are enabled",
+      "Excel closes"
+    ],
+    answer: "Macros are enabled"
+  },
+  {
+    question: "What does the line Selection.NumberFormat = \"d-mmm-yy\" do in VBA?",
+    options: [
+      "Sets font to bold",
+      "Formats the selection as text",
+      "Changes number format to date",
+      "Adds a border"
+    ],
+    answer: "Changes number format to date"
+  },
+  {
+    question: "जब आप फॉर्मूला \"=A1+B1\" को नीचे एक सेल में कॉपी करते हैं, तो नया फॉर्मूला क्या होगा?",
+    options: [
+      "=A1+B1",
+      "=A2+B2",
+      "=$A$1+$B$1",
+      "=A1+$B$1"
+    ],
+    answer: "=A2+B2"
+  },
+    {
+    question: "Absolute Cell Reference में किस चिन्ह का प्रयोग होता है?",
+    options: [
+      "@",
+      "#",
+      "$",
+      "&"
+    ],
+    answer: "$"
+  },
+  {
+    question: "फॉर्मूला =$A$1 का मतलब क्या है?",
+    options: [
+      "रो और कॉलम दोनों बदलेंगे",
+      "केवल रो बदलेगा",
+      "केवल कॉलम बदलेगा",
+      "रो और कॉलम दोनों फिक्स रहेंगे"
+    ],
+    answer: "रो और कॉलम दोनों फिक्स रहेंगे"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा Mixed Cell Reference है?",
+    options: [
+      "A1",
+      "$A$1",
+      "$A1",
+      "Sheet1!A1"
+    ],
+    answer: "$A1"
+  },
+  {
+    question: "यदि हम A$1 को नीचे कॉपी करते हैं, तो फॉर्मूला कैसे बदलेगा?",
+    options: [
+      "A$2",
+      "B$1",
+      "A$1",
+      "$A$2"
+    ],
+    answer: "A$1"
+  },
+  {
+    question: "फॉर्मूला को Absolute Reference में बदलने के लिए कौन-सी कुंजी दबाई जाती है?",
+    options: [
+      "F1",
+      "F4",
+      "Ctrl",
+      "Shift"
+    ],
+    answer: "F4"
+  },
+  {
+    question: "यदि फॉर्मूला Sheet2!A1 है, तो इसका मतलब क्या है?",
+    options: [
+      "Sheet2 में सभी कॉलम",
+      "Sheet2 का पूरा डेटा",
+      "Sheet2 का सेल A1",
+      "Sheet2 की कॉलम A"
+    ],
+    answer: "Sheet2 का सेल A1"
+  },
+  {
+    question: "निम्न में से कौन सा उदाहरण एक Cell Range को दर्शाता है?",
+    options: [
+      "A1 to B2",
+      "A1-B2",
+      "A1:B2",
+      "A1;B2"
+    ],
+    answer: "A1:B2"
+  },
+  {
+    question: "A1 को जब एक नई शीट से रेफर किया जाता है, तो सही सिंटैक्स क्या है?",
+    options: [
+      "A1!Sheet2",
+      "Sheet2.A1",
+      "Sheet2!A1",
+      "A1/Sheet2"
+    ],
+    answer: "Sheet2!A1"
+  },
+  {
+    question: "जब आप =B1$A$1 फॉर्मूला को नीचे कॉपी करते हैं, तो...?",
+    options: [
+      "दोनों बदलेंगे",
+      "B1 बदलेगा, लेकिन $A$1 वही रहेगा",
+      "कोई नहीं बदलेगा",
+      "$A$1 बदलेगा, लेकिन B1 वही रहेगा"
+    ],
+    answer: "B1 बदलेगा, लेकिन $A$1 वही रहेगा"
+  },
+  {
+    question: "Excel में सामान्यतः कौन-सी Cell Referencing Style प्रयोग की जाती है?",
+    options: [
+      "B1",
+      "R1C1",
+      "A1",
+      "R1B1"
+    ],
+    answer: "A1"
+  },
+   {
+    question: "Absolute Cell Reference में कौन-सा चिन्ह प्रयोग किया जाता है?",
+    options: [
+      "&",
+      "@",
+      "$",
+      "#"
+    ],
+    answer: "$"
+  },
+  {
+    question: "R1C1 में R5C1 का मतलब है:",
+    options: [
+      "Row 1, Column 5",
+      "Column 1, Row 5",
+      "Cell A5",
+      "Cell E1"
+    ],
+    answer: "Cell A5"
+  },
+  {
+    question: "R[4]C[1] का मतलब क्या है?",
+    options: [
+      "Absolute reference of row 4 column 1",
+      "Current cell से 4 rows नीचे और 1 column दाईं ओर",
+      "4 rows ऊपर और 1 column बाईं ओर",
+      "Row 4 और Column 1"
+    ],
+    answer: "Current cell से 4 rows नीचे और 1 column दाईं ओर"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा फॉर्मूला Absolute referencing दर्शाता है?",
+    options: [
+      "=SUM(A1:A10)",
+      "=SUM($A$1:$A$10)",
+      "=SUM(R[1]C[1]:RC[1])",
+      "=SUM(A$1:A$10)"
+    ],
+    answer: "=SUM($A$1:$A$10)"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा R1C1 Format में लिखा गया फॉर्मूला है?",
+    options: [
+      "=SUM(A1:A5)",
+      "=SUM(R4C3:R7C3)",
+      "=SUM($A$4:$A$7)",
+      "=SUM(B4:B7)"
+    ],
+    answer: "=SUM(R4C3:R7C3)"
+  },
+  {
+    question: "INDIRECT फ़ंक्शन में R1C1 referencing को काम में लेने के लिए कौन-सा अतिरिक्त argument जरूरी होता है?",
+    options: [
+      "TRUE",
+      "\"R1C1\"",
+      "FALSE या 0",
+      "\"A1\""
+    ],
+    answer: "FALSE या 0"
+  },
+  {
+    question: "यदि सेल F1 में “R[0]C3:RC5” है, तो =SUM(INDIRECT(F1, 0)) का क्या अर्थ होगा?",
+    options: [
+      "वर्तमान row के column 3 से 5 तक के सेल्स का योग",
+      "पूरे Sheet का योग",
+      "Row 0 का योग",
+      "तीसरे Column का योग"
+    ],
+    answer: "वर्तमान row के column 3 से 5 तक के सेल्स का योग"
+  },
+  {
+    question: "Excel में R1C1 notation को चालू या बंद कहाँ से किया जाता है?",
+    options: [
+      "View tab",
+      "Page Layout",
+      "Formulas > Excel Options",
+      "Data > Tools"
+    ],
+    answer: "Formulas > Excel Options"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा फॉर्मूला 5 पंक्तियाँ ऊपर की सेल रेंज का योग करता है (R1C1 with INDIRECT)?",
+    options: [
+      "=SUM(R[-5]C:RC)",
+      "=INDIRECT(\"A1:A5\")",
+      "=SUM(INDIRECT(\"R[-5]C[0]:RC[0]\",0))",
+      "=OFFSET(A1,-5,0)"
+    ],
+    answer: "=SUM(INDIRECT(\"R[-5]C[0]:RC[0]\",0))"
+  },
+  {
+    question: "What is the main purpose of using named ranges in Excel?",
+    options: [
+      "To increase the number of rows",
+      "To shorten the file size",
+      "To make formulas easier to read and manage",
+      "To add passwords to ranges"
+    ],
+    answer: "To make formulas easier to read and manage"
+  },
+  {
+    question: "What is the correct way to define a named range using the Name Box?",
+    options: [
+      "Click anywhere and type the name in the cell",
+      "Type the name in the formula bar",
+      "Select range → Type name in Name Box (left of formula bar)",
+      "Use a hyperlink"
+    ],
+    answer: "Select range → Type name in Name Box (left of formula bar)"
+  },
+  {
+    question: "Which of the following is not allowed in a named range?",
+    options: [
+      "Underscore (_)",
+      "Period (.)",
+      "Numbers (not in the first character)",
+      "Space ( )"
+    ],
+    answer: "Space ( )"
+  },
+    {
+    question: "How can you create multiple named ranges at once using headers?",
+    options: [
+      "Use Name Box for each column",
+      "Use 'Create from Selection' option",
+      "Use the Hyperlink feature",
+      "It’s not possible"
+    ],
+    answer: "Use 'Create from Selection' option"
+  },
+  {
+    question: "What happens if you create a named range 'Sales' and then try to create another one named 'sales'?",
+    options: [
+      "Excel will allow it",
+      "Excel will overwrite the first one",
+      "Excel will throw an error",
+      "Both will be created as separate ranges"
+    ],
+    answer: "Excel will throw an error"
+  },
+  {
+    question: "What is the maximum length allowed for a named range?",
+    options: [
+      "128 characters",
+      "1024 characters",
+      "255 characters",
+      "No limit"
+    ],
+    answer: "255 characters"
+  },
+  {
+    question: "Which of the following formulas correctly uses a named range called “Sales”?",
+    options: [
+      "=COUNT(SalesRep)",
+      "=SUM(Sales)",
+      "=SALES.SUM()",
+      "=Sales()"
+    ],
+    answer: "=SUM(Sales)"
+  },
+  {
+    question: "Which method cannot restrict the scope of a named range to a worksheet?",
+    options: [
+      "Using Define Name",
+      "Using the Name Box",
+      "Using Create from Selection",
+      "None of the above"
+    ],
+    answer: "Using the Name Box"
+  },
+  {
+    question: "What does the #NAME? error indicate in Excel?",
+    options: [
+      "Missing cell reference",
+      "Wrong data type",
+      "Non-existent function or misspelled function name",
+      "Incorrect operator"
+    ],
+    answer: "Non-existent function or misspelled function name"
+  },
+  {
+    question: "Which error occurs when a number is divided by zero?",
+    options: [
+      "#NAME?",
+      "#DIV/0!",
+      "#VALUE!",
+      "#NULL!"
+    ],
+    answer: "#DIV/0!"
+  },
+  {
+    question: "What causes the #REF! error?",
+    options: [
+      "Wrong function name",
+      "Wrong operator",
+      "Deleted or missing cell reference",
+      "Invalid range separator"
+    ],
+    answer: "Deleted or missing cell reference"
+  },
+  {
+    question: "What is the main reason behind #NULL! error in Excel?",
+    options: [
+      "Cell format issue",
+      "Incorrect use of space instead of comma in formulas",
+      "Text used in calculations",
+      "Lookup value not found"
+    ],
+    answer: "Incorrect use of space instead of comma in formulas"
+  },
+  {
+    question: "The #VALUE! error typically occurs when:",
+    options: [
+      "You try to use text instead of a number",
+      "Cell is too narrow",
+      "Cell reference is deleted",
+      "Function is misspelled"
+    ],
+    answer: "You try to use text instead of a number"
+  },
+  {
+    question: "What kind of error is represented by ###### in Excel?",
+    options: [
+      "Formatting issue (column width too small)",
+      "Missing cell reference",
+      "Invalid data type",
+      "Circular reference"
+    ],
+    answer: "Formatting issue (column width too small)"
+  },
+  {
+    question: "The #N/A error appears when:",
+    options: [
+      "Function is misspelled",
+      "Range operator is wrong",
+      "Lookup value is not found",
+      "Cell is blank"
+    ],
+    answer: "Lookup value is not found"
+  },
+  {
+    question: "What does the #NUM! error represent in Excel?",
+    options: [
+      "Wrong data type",
+      "Invalid numeric operation (e.g., square root of negative number)",
+      "Missing cell reference",
+      "Cell is too small"
+    ],
+    answer: "Invalid numeric operation (e.g., square root of negative number)"
+  },
+  {
+    question: "Which formula will result in a #DIV/0! error?",
+    options: [
+      "=SUM(1,2)",
+      "=10/0",
+      "=IF(1=1,0,1)"
+    ],
+    answer: "=10/0"
+  },
+   {
+    question: "What is the fix for a #NAME? error?",
+    options: [
+      "Correct the function spelling",
+      "Delete the formula",
+      "Change column width",
+      "Replace value with 0"
+    ],
+    answer: "Correct the function spelling"
+  },
+  {
+    question: "Which of the following is not a true formula error in Excel?",
+    options: [
+      "#REF!",
+      "#DIV/0!",
+      "######",
+      "#VALUE!"
+    ],
+    answer: "######"
+  },
+  {
+    question: "What function can be used to handle errors gracefully in Excel?",
+    options: [
+      "ISERROR",
+      "IFERROR",
+      "SUMIF",
+      "ERRORCHECK"
+    ],
+    answer: "IFERROR"
+  },
+  {
+    question: "How do you resolve the #N/A error in a VLOOKUP function?",
+    options: [
+      "Use space instead of comma",
+      "Use a colon instead of comma",
+      "Make the table array an absolute reference using F4",
+      "Change font color"
+    ],
+    answer: "Make the table array an absolute reference using F4"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+ {
+    question: `9. What is the relationship between polymorphism and the IS-A relationship?\n
+    Polymorphism और IS-A relationship के बीच क्या संबंध है?`,
+    options: [
+      "Polymorphism is independent of IS-A relationship / Polymorphism IS-A relationship से स्वतंत्र है",
+      "Polymorphism requires IS-A relationship (inheritance) to work / Polymorphism के लिए IS-A relationship (inheritance) आवश्यक है",
+      "Polymorphism replaces IS-A relationship / Polymorphism IS-A relationship को बदल देता है",
+      "None of the above / उपरोक्त में से कोई नहीं"
+    ],
+    answer: "Polymorphism requires IS-A relationship (inheritance) to work / Polymorphism के लिए IS-A relationship (inheritance) आवश्यक है"
+  },
+  {
+    question: `10. Which of the following is the main advantage of polymorphism in Java?\n
+    Java में polymorphism का मुख्य लाभ क्या है?`,
+    options: [
+      "Code duplication / कोड की पुनरावृत्ति",
+      "Code flexibility and reusability / कोड की लचीलापन और पुन: उपयोग",
+      "More memory usage / अधिक मेमोरी उपयोग",
+      "Reduced inheritance / कम inheritance"
+    ],
+    answer: "Code flexibility and reusability / कोड की लचीलापन और पुन: उपयोग"
+  },
+  {
+    question: `1. What is an interface in Java?\n
+    Java में interface क्या है?`,
+    options: [
+      "A class with method bodies / method bodies वाला class",
+      "A collection of abstract methods and constants / abstract methods और constants का समूह",
+      "A class with instance variables only / केवल instance variables वाला class",
+      "A class that cannot be extended / ऐसा class जो extend नहीं किया जा सकता"
+    ],
+    answer: "A collection of abstract methods and constants / abstract methods और constants का समूह"
+  },
+  {
+    question: "2. Which keyword is used to declare an interface in Java? / Java में interface declare करने के लिए कौन सा keyword उपयोग होता है?",
+    options: [
+      "class",
+      "implements",
+      "interface",
+      "abstract"
+    ],
+    answer: "interface"
+  },
+  {
+    question: "3. By default, the methods in an interface are: / interface में methods by default किस प्रकार के होते हैं?",
+    options: [
+      "private and abstract",
+      "public and abstract",
+      "public and concrete",
+      "static and final"
+    ],
+    answer: "public and abstract"
+  },
+  {
+    question: "4. Which of the following is true about variables declared in an interface? / interface में घोषित variables के बारे में सही क्या है?",
+    options: [
+      "They are instance variables",
+      "They are private and final",
+      "They are public, static, and final",
+      "They can be changed by implementing classes"
+    ],
+    answer: "They are public, static, and final"
+  },
+  {
+    question: "5. From which Java version onwards can interfaces have default and static methods? / Java के किस version से interfaces में default और static methods हो सकते हैं?",
+    options: [
+      "Java 6",
+      "Java 7",
+      "Java 8",
+      "Java 9"
+    ],
+    answer: "Java 8"
+  },
+  {
+    question: "6. Can an interface have a constructor in Java? / क्या Java में interface का constructor हो सकता है?",
+    options: [
+      "Yes",
+      "No"
+    ],
+    answer: "No"
+  },
+  {
+    question: "7. What keyword is used by a class to implement an interface? / interface को implement करने के लिए class कौन सा keyword use करती है?",
+    options: [
+      "extends",
+      "implements",
+      "inherits",
+      "interface"
+    ],
+    answer: "implements"
+  },
+  {
+    question: "8. Can a Java class implement more than one interface? / क्या Java class एक से अधिक interfaces implement कर सकती है?",
+    options: [
+      "Yes",
+      "No"
+    ],
+    answer: "Yes"
+  },
+  {
+    question: "9. If a class implements an interface but does not implement all methods of that interface, then the class must be declared as: / अगर class interface implement करती है लेकिन सभी methods को implement नहीं करती, तो class को किस रूप में घोषित करना चाहिए?",
+    options: [
+      "final",
+      "abstract",
+      "static",
+      "public"
+    ],
+    answer: "abstract"
+  },
+  {
+    question: "10. Which of the following statements is true? / निम्न में से कौन सा कथन सही है?",
+    options: [
+      "Interfaces can extend classes.",
+      "Interfaces can extend multiple interfaces.",
+      "Interfaces cannot extend other interfaces.",
+      "Interfaces can have instance variables."
+    ],
+    answer: "Interfaces can extend multiple interfaces."
+  },
+  {
+    question: "11. How can an interface extend multiple interfaces? / Interface कई interfaces को कैसे extend कर सकता है?",
+    options: [
+      "Using comma separated list of interfaces after extends keyword / extends के बाद interfaces की comma से अलग सूची",
+      "Using multiple implements keywords / कई implements keywords का उपयोग करके",
+      "Interfaces cannot extend multiple interfaces / Interface कई interfaces extend नहीं कर सकता",
+      "Using super keyword / super keyword का उपयोग करके"
+    ],
+    answer: "Using comma separated list of interfaces after extends keyword / extends के बाद interfaces की comma से अलग सूची"
+  },
+  {
+    question: "12. Why are interfaces used in Java? (Select the best answer) / Java में interfaces क्यों उपयोग किए जाते हैं? (सर्वश्रेष्ठ उत्तर चुनें)",
+    options: [
+      "To achieve complete abstraction and multiple inheritance / पूर्ण abstraction और multiple inheritance प्राप्त करने के लिए",
+      "To create objects directly / सीधे objects बनाने के लिए",
+      "To hold instance variables / instance variables रखने के लिए",
+      "To avoid inheritance / inheritance से बचने के लिए"
+    ],
+    answer: "To achieve complete abstraction and multiple inheritance / पूर्ण abstraction और multiple inheritance प्राप्त करने के लिए"
+  },
+  {
+    question: `13. Which access modifier must be used for methods implementing an interface method?\n
+    Interface method को implement करने वाले method के लिए कौन सा access modifier उपयोग करना चाहिए?`,
+    options: [
+      "private",
+      "protected",
+      "public",
+      "default"
+    ],
+    answer: "public"
+  },
+  {
+    question: `14. What happens if a method in implementing class is not declared public?\n
+    अगर implementing class में method को public नहीं declare किया गया तो क्या होगा?`,
+    options: [
+      "Compile-time error",
+      "Runtime error",
+      "Program runs but gives warning",
+      "No issue"
+    ],
+    answer: "Compile-time error"
+  },
+  {
+    question: `15. Which of the following is NOT true about interfaces in Java?\n
+    Java के interfaces के बारे में निम्न में से कौन सा कथन सही नहीं है?`,
+    options: [
+      "They provide full abstraction",
+      "They can contain constructors",
+      "They can contain default methods",
+      "They can be implemented by classes"
+    ],
+    answer: "They can contain constructors"
+  },
+  {
+    question: `1. What is a package in Java?\n
+    Java में package क्या है?`,
+    options: [
+      "A folder containing unrelated files / unrelated files वाला folder",
+      "A physical folder (directory) containing related classes and interfaces / संबंधित classes और interfaces वाला physical folder",
+      "A single Java file / एक Java file",
+      "A data type / एक data type"
+    ],
+    answer: "A physical folder (directory) containing related classes and interfaces / संबंधित classes और interfaces वाला physical folder"
+  },
+  {
+    question: `2. Why do we use packages in Java?\n
+    Java में packages क्यों उपयोग किए जाते हैं?`,
+    options: [
+      "To store variables only / केवल variables स्टोर करने के लिए",
+      "To avoid naming conflicts and organize code / नामकरण संघर्ष से बचने और कोड व्यवस्थित करने के लिए",
+      "To write comments in code / कोड में comments लिखने के लिए",
+      "To run Java programs faster / Java programs को तेज़ चलाने के लिए"
+    ],
+    answer: "To avoid naming conflicts and organize code / नामकरण संघर्ष से बचने और कोड व्यवस्थित करने के लिए"
+  },
+  {
+    question: `3. Which keyword is used to declare a package in a Java source file?\n
+    Java source file में package declare करने के लिए कौन सा keyword उपयोग होता है?`,
+    options: [
+      "import",
+      "package",
+      "class",
+      "extends"
+    ],
+    answer: "package"
+  },
+  {
+    question: `4. Where must the package declaration appear in a Java source file?\n
+    Java source file में package declaration कहाँ आनी चाहिए?`,
+    options: [
+      "Anywhere in the file / फ़ाइल में कहीं भी",
+      "After class declaration / class declaration के बाद",
+      "At the first line of the file / फ़ाइल की पहली लाइन में",
+      "After the main method / main method के बाद"
+    ],
+    answer: "At the first line of the file / फ़ाइल की पहली लाइन में"
+  },
+  {
+    question: `5. What happens if two classes have the same name but are placed in different packages?\n
+    अगर दो classes के नाम एक जैसे हैं लेकिन वे अलग-अलग packages में हैं तो क्या होगा?`,
+    options: [
+      "It causes a naming conflict / नामकरण संघर्ष होगा",
+      "The compiler throws an error / compiler error देगा",
+      "No conflict occurs, they are treated as different classes / कोई संघर्ष नहीं होगा, वे अलग-अलग classes माने जाएंगे",
+      "Only one class will be used by the compiler / compiler केवल एक class का उपयोग करेगा"
+    ],
+    answer: "No conflict occurs, they are treated as different classes / कोई संघर्ष नहीं होगा, वे अलग-अलग classes माने जाएंगे"
+  },
+  {
+    question: `6. Which of the following is NOT an advantage of using packages?\n
+    निम्न में से कौन सा पैकेज का लाभ नहीं है?`,
+    options: [
+      "Code reusability / कोड पुन: उपयोग",
+      "Naming conflict resolution / नामकरण संघर्ष का समाधान",
+      "Execution speed improvement / निष्पादन गति सुधार",
+      "Organized file structure / व्यवस्थित फ़ाइल संरचना"
+    ],
+    answer: "Execution speed improvement / निष्पादन गति सुधार"
+  },
+  {
+    question: `7. What are the two main types of packages in Java?\n
+    Java में पैकेज के दो मुख्य प्रकार कौन से हैं?`,
+    options: [
+      "Public and Private packages",
+      "User-defined and Built-in packages",
+      "Local and Global packages",
+      "Class and Interface packages"
+    ],
+    answer: "User-defined and Built-in packages"
+  },
+  {
+    question: `8. How do you create a user-defined package in Java?\n
+    Java में user-defined package कैसे बनाते हैं?`,
+    options: [
+      "By using the import keyword / import keyword से",
+      "By writing package packageName; at the top of the source file / source file के ऊपर package packageName; लिखकर",
+      "By writing class packageName {} / class packageName {} लिखकर",
+      "By extending a package / package extend करके"
+    ],
+    answer: "By writing package packageName; at the top of the source file / source file के ऊपर package packageName; लिखकर"
+  },
+  {
+    question: `9. Which of the following is the correct naming convention for package names?\n
+    package नामों के लिए सही naming convention क्या है?`,
+    options: [
+      "Package names should be uppercase / पैकेज नाम uppercase में होने चाहिए",
+      "Package names should be a mix of uppercase and lowercase / पैकेज नाम uppercase और lowercase का मिश्रण होने चाहिए",
+      "Package names should be in lowercase / पैकेज नाम lowercase में होने चाहिए",
+      "Package names should start with a number / पैकेज नाम संख्या से शुरू होने चाहिए"
+    ],
+    answer: "Package names should be in lowercase / पैकेज नाम lowercase में होने चाहिए"
+  },
+   {
+    question: `10. What is an example of a proper package declaration?\n
+    सही package declaration का उदाहरण कौन सा है?`,
+    options: [
+      "Package MyPackage;",
+      "package com.ibm.hdfc.loan.homeloan;",
+      "package LoanHome;",
+      "package comIBMLoanHomeLoan;"
+    ],
+    answer: "package com.ibm.hdfc.loan.homeloan;"
+  },
+  {
+    question: `11. Which package type contains Java's built-in classes like java.lang, java.util, etc.?\n
+    Java के built-in classes जैसे java.lang, java.util आदि किस package type में होते हैं?`,
+    options: [
+      "User-defined package",
+      "Built-in (predefined) package",
+      "Abstract package",
+      "Static package"
+    ],
+    answer: "Built-in (predefined) package"
+  },
+  {
+    question: `12. What kind of access control can packages provide in Java?\n
+    Java में packages किस प्रकार का access control प्रदान कर सकते हैं?`,
+    options: [
+      "Public only",
+      "Private only",
+      "Visibility control to restrict access within the package",
+      "No access control"
+    ],
+    answer: "Visibility control to restrict access within the package"
+  },
+  {
+    question: `13. If no package is specified in a Java file, in which package does the class reside?\n
+    यदि Java फ़ाइल में कोई package specified नहीं है, तो class किस package में होती है?`,
+    options: [
+      "default package (unnamed package)",
+      "java.lang",
+      "user-defined package",
+      "built-in package"
+    ],
+    answer: "default package (unnamed package)"
+  },
+  {
+    question: `1. What does AWT stand for in Java?\n
+    Java में AWT का क्या मतलब है?`,
+    options: [
+      "Abstract Window Toolkit",
+      "Advanced Window Technology",
+      "Automatic Window Tool",
+      "Abstract Widget Tool"
+    ],
+    answer: "Abstract Window Toolkit"
+  },
+  {
+    question: `2. What is the main purpose of AWT?\n
+    AWT का मुख्य उद्देश्य क्या है?`,
+    options: [
+      "To write console applications",
+      "To provide GUI components for Java programs",
+      "To create database connections",
+      "To handle networking operations"
+    ],
+    answer: "To provide GUI components for Java programs"
+  },
+  {
+    question: `3. Which of the following is NOT an AWT component?\n
+    निम्न में से कौन AWT component नहीं है?`,
+    options: [
+      "Button",
+      "TextField",
+      "ScrollBar",
+      "JLabel"
+    ],
+    answer: "JLabel"
+  },
+  {
+    question: `4. In AWT, what is a Container?\n
+    AWT में Container क्या होता है?`,
+    options: [
+      "A class that holds components and manages their layout",
+      "A type of Button",
+      "A component that receives user input only",
+      "A class for file handling"
+    ],
+    answer: "A class that holds components and manages their layout"
+  },
+  {
+    question: `5. Which of the following is a top-level container in AWT?\n
+    निम्न में से कौन AWT का top-level container है?`,
+    options: [
+      "Panel",
+      "Frame",
+      "Button",
+      "TextField"
+    ],
+    answer: "Frame"
+  },
+  {
+    question: `6. What is the relationship between Frame and Window in AWT?\n
+    AWT में Frame और Window का क्या संबंध है?`,
+    options: [
+      "Frame is a subclass of Window",
+      "Window is a subclass of Frame",
+      "They are unrelated",
+      "Both are interfaces"
+    ],
+    answer: "Frame is a subclass of Window"
+  },
+  {
+    question: `7. Which container is typically used to group components together and is itself a component?\n
+    कौन सा container आमतौर पर components को समूहित करने के लिए उपयोग होता है और स्वयं भी एक component होता है?`,
+    options: [
+      "Window",
+      "Frame",
+      "Panel",
+      "Dialog"
+    ],
+    answer: "Panel"
+  },
+  {
+    question: `8. Can an AWT Dialog exist without a Frame?\n
+    क्या AWT Dialog Frame के बिना exist कर सकता है?`,
+    options: [
+      "Yes",
+      "No"
+    ],
+    answer: "No"
+  },
+  {
+    question: `9. How do you add a component to a container in AWT?\n
+    AWT में component को container में कैसे जोड़ा जाता है?`,
+    options: [
+      "Using the add() method of the container",
+      "Using the insert() method of the component",
+      "Using the connect() method",
+      "Using the append() method"
+    ],
+    answer: "Using the add() method of the container"
+  },
+  {
+    question: `10. What is the default visibility state of a newly created Frame?\n
+    नए बनाए गए Frame की default visibility स्थिति क्या होती है?`,
+    options: [
+      "Visible",
+      "Invisible"
+    ],
+    answer: "Invisible",
+    explanation: "A Frame is invisible by default and must be shown by calling show() or setVisible(true)."
+  },
+  {
+    question: `11. Which method is used to make a Frame visible?\n
+    Frame को visible बनाने के लिए कौन सा method उपयोग होता है?`,
+    options: [
+      "show()",
+      "display()",
+      "open()",
+      "visible()"
+    ],
+    answer: "show()",
+    explanation: "In later Java versions, setVisible(true) is preferred over show()."
+  },
+  {
+    question: `12. What is the role of the init() method in an applet?\n
+    Applet में init() method का क्या रोल होता है?`,
+    options: [
+      "It runs the main program",
+      "It initializes the applet and is called automatically",
+      "It closes the applet",
+      "It destroys the applet"
+    ],
+    answer: "It initializes the applet and is called automatically"
+  },
+  {
+    question: `13. Which class in AWT serves as the base class for all components?\n
+    AWT में कौन सी class सभी components की base class होती है?`,
+    options: [
+      "Container",
+      "Component",
+      "Frame",
+      "Panel"
+    ],
+    answer: "Component"
+  },
+  {
+    question: `14. What does the AWT use to manage the placement and sizing of components within containers?\n
+    Containers के अंदर components की placement और sizing को manage करने के लिए AWT क्या उपयोग करता है?`,
+    options: [
+      "Layout Managers",
+      "Managers",
+      "Containers",
+      "Components"
+    ],
+    answer: "Layout Managers"
+  },
+  {
+    question: `15. Which of the following is NOT a container class provided by AWT?\n
+    निम्न में से कौन AWT द्वारा प्रदान की गई container class नहीं है?`,
+    options: [
+      "Window",
+      "Frame",
+      "Dialog",
+      "JButton"
+    ],
+    answer: "JButton",
+    explanation: "JButton is a Swing component, not AWT."
+  },
+  {
+    question: `What does AWT stand for in Java?\n
+    Java में AWT का पूरा नाम क्या है?`,
+    options: [
+      "Abstract Window Toolkit",
+      "Advanced Window Technology",
+      "Automated Window Tools",
+      "Application Window Toolkit"
+    ],
+    answer: "Abstract Window Toolkit"
+  },
+  {
+    question: `AWT components are called heavyweight components because:\n
+    AWT components को heavyweight components इसलिए कहा जाता है क्योंकि:`,
+    options: [
+      "They consume more memory",
+      "They use native OS resources",
+      "They are slower than Swing components",
+      "They are written in Java only"
+    ],
+    answer: "They use native OS resources"
+  },
+  {
+    question: `Which package contains the AWT classes?\n
+    AWT classes किस package में होती हैं?`,
+    options: [
+      "java.awt",
+      "java.io",
+      "java.net",
+      "java.swing"
+    ],
+    answer: "java.awt"
+  },
+    {
+    question: `Which class is the superclass for all AWT components?\n
+    सभी AWT components की superclass कौन सी class है?`,
+    options: [
+      "Container",
+      "Object",
+      "Component",
+      "Window"
+    ],
+    answer: "Component"
+  },
+  {
+    question: `Which of the following is NOT an AWT component?\n
+    निम्न में से कौन AWT component नहीं है?`,
+    options: [
+      "Button",
+      "Checkbox",
+      "JLabel",
+      "TextField"
+    ],
+    answer: "JLabel",
+    explanation: "JLabel Swing का component है, AWT का नहीं।"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

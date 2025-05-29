@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  // Python Architecture & Concepts
+  {
+    question: `What is the role of the Python Interpreter?\nPython Interpreter की भूमिका क्या है?`,
+    options: [
+      "To convert Python code directly into machine code / Python को सीधे मशीन कोड में बदलना",
+      "To parse, compile, and execute Python code / Python कोड को पार्स, कम्पाइल और execute करना",
+      "To manage memory allocation only / केवल मेमोरी आवंटन प्रबंधित करना",
+      "To store Python modules / Python मॉड्यूल्स को स्टोर करना"
+    ],
+    answer: "To parse, compile, and execute Python code / Python कोड को पार्स, कम्पाइल और execute करना"
+  },
+  {
+    question: `Which component converts Python source code into an Abstract Syntax Tree (AST)?\nPython सोर्स कोड को Abstract Syntax Tree (AST) में कौन सा कम्पोनेंट बदलता है?`,
+    options: [
+      "Bytecode Compiler",
+      "Execution Engine",
+      "Parser",
+      "Garbage Collector"
+    ],
+    answer: "Parser"
+  },
+  {
+    question: `What is Python bytecode?\nPython bytecode क्या है?`,
+    options: [
+      "Machine-specific binary code / मशीन-विशिष्ट बाइनरी कोड",
+      "A high-level representation of Python code / Python कोड का उच्च-स्तरीय प्रतिनिधित्व",
+      "A platform-independent, low-level representation of code / प्लेटफ़ॉर्म-स्वतंत्र, निम्न-स्तरीय कोड का प्रतिनिधित्व",
+      "The raw source code / कच्चा सोर्स कोड"
+    ],
+    answer: "A platform-independent, low-level representation of code / प्लेटफ़ॉर्म-स्वतंत्र, निम्न-स्तरीय कोड का प्रतिनिधित्व"
+  },
+  {
+    question: `Which part of Python executes the bytecode?\nPython का कौन सा भाग bytecode को execute करता है?`,
+    options: [
+      "Memory Manager",
+      "Execution Engine (Python Virtual Machine)",
+      "Parser",
+      "Interpreter"
+    ],
+    answer: "Execution Engine (Python Virtual Machine)"
+  },
+  {
+    question: `What is the primary purpose of the Garbage Collector in Python?\nPython में Garbage Collector का मुख्य उद्देश्य क्या है?`,
+    options: [
+      "To compile Python code / Python कोड को compile करना",
+      "To optimize Python bytecode / Python bytecode को optimize करना",
+      "To free memory occupied by unused objects / उपयोग न होने वाले ऑब्जेक्ट्स की मेमोरी मुक्त करना",
+      "To execute Python code / Python कोड को execute करना"
+    ],
+    answer: "To free memory occupied by unused objects / उपयोग न होने वाले ऑब्जेक्ट्स की मेमोरी मुक्त करना"
+  },
+  {
+    question: `Which module contains built-in Python functions and modules?\nकौन सा मॉड्यूल built-in Python functions और modules रखता है?`,
+    options: [
+      "Object Model",
+      "Standard Library",
+      "Memory Manager",
+      "Execution Engine"
+    ],
+    answer: "Standard Library"
+  },
+  {
+    question: `Which of the following is NOT a mode when opening a file in Python?\nPython में फ़ाइल खोलते समय निम्नलिखित में से कौन सा मोड नहीं है?`,
+    options: [
+      "'r' (read)",
+      "'w' (write)",
+      "'x' (execute)",
+      "'a' (append)"
+    ],
+    answer: "'x' (execute) (Note: 'x' mode actually means exclusive creation)"
+  },
+   {
+    question: `Which keyword is used in Python for exception handling?\nPython में exception handling के लिए कौन सा keyword उपयोग होता है?`,
+    options: [
+      "try",
+      "catch",
+      "throw",
+      "except"
+    ],
+    answer: "try और except (दोनों साथ में उपयोग होते हैं)"
+  },
+  {
+    question: `Which built-in function converts a string to an integer in Python?\nPython में string को integer में बदलने के लिए कौन सा built-in function है?`,
+    options: [
+      "str()",
+      "int()",
+      "float()",
+      "convert()"
+    ],
+    answer: "int()"
+  },
+  {
+    question: `What does the 'with' statement do when opening a file in Python?\nPython में 'with' statement फ़ाइल खोलते समय क्या करता है?`,
+    options: [
+      "Opens the file and keeps it open forever / फ़ाइल खोलता है और हमेशा के लिए खुली रखता है",
+      "Automatically closes the file after the block of code completes / कोड ब्लॉक खत्म होने पर फ़ाइल अपने आप बंद हो जाती है",
+      "Deletes the file after usage / उपयोग के बाद फ़ाइल को हटाता है",
+      "None of the above / उपरोक्त में से कोई नहीं"
+    ],
+    answer: "Automatically closes the file after the block of code completes / कोड ब्लॉक खत्म होने पर फ़ाइल अपने आप बंद हो जाती है"
+  },
+  {
+    question: `What keyword is used to define a function in Python?\nPython में function को define करने के लिए कौन सा keyword उपयोग होता है?`,
+    options: [
+      "function",
+      "def",
+      "fun",
+      "define"
+    ],
+    answer: "def"
+  },
+  {
+    question: `Which of the following is a positional argument?\nनिम्न में से कौन positional argument है?`,
+    options: [
+      "func(a=5)",
+      "func(5)",
+      "func(*args)",
+      "func(**kwargs)"
+    ],
+    answer: "func(5)"
+  },
+  {
+    question: `Which statement is correct about Python modules?\nPython मॉड्यूल के बारे में सही कथन कौन सा है?`,
+    options: [
+      "A module is a file containing Python code with .mod extension / मॉड्यूल Python कोड वाली .mod एक्सटेंशन वाली फ़ाइल होती है",
+      "A module can contain variables, functions, and classes / मॉड्यूल में variables, functions और classes हो सकते हैं",
+      "You cannot import specific functions from a module / आप मॉड्यूल से specific functions import नहीं कर सकते",
+      "Modules cannot have executable code / मॉड्यूल में executable code नहीं हो सकता"
+    ],
+    answer: "A module can contain variables, functions, and classes / मॉड्यूल में variables, functions और classes हो सकते हैं"
+  },
+  {
+    question: `Which block is always executed regardless of exceptions?\nException होने पर भी कौन सा block हमेशा execute होता है?`,
+    options: [
+      "try",
+      "except",
+      "else",
+      "finally"
+    ],
+    answer: "finally"
+  },
+  {
+    question: `What will the function len() return when called on a list?\nList पर len() function call करने पर क्या लौटाता है?`,
+    options: [
+      "The size in bytes of the list / list का size बाइट्स में",
+      "The number of elements in the list / list में तत्वों की संख्या",
+      "The sum of all elements / सभी तत्वों का योग",
+      "The maximum element / सबसे बड़ा तत्व"
+    ],
+    answer: "The number of elements in the list / list में तत्वों की संख्या"
+  },
+  {
+    question: `Which of the following opens a file for appending in Python?\nPython में निम्न में से कौन सी फ़ाइल को append करने के लिए खोलती है?`,
+    options: [
+      "open('file.txt', 'r')",
+      "open('file.txt', 'w')",
+      "open('file.txt', 'a')",
+      "open('file.txt', 'x')"
+    ],
+    answer: "open('file.txt', 'a')"
+  },
+  {
+    question: `What is the role of the Garbage Collector in Python?\nPython में Garbage Collector की भूमिका क्या है?`,
+    options: [
+      "To compile Python code into bytecode / Python कोड को bytecode में compile करना",
+      "To free memory occupied by unused objects / उपयोग न हो रहे objects की मेमोरी खाली करना",
+      "To parse Python source code into AST / Python सोर्स कोड को AST में बदलना",
+      "To execute Python bytecode / Python bytecode को execute करना"
+    ],
+    answer: "To free memory occupied by unused objects / उपयोग न हो रहे objects की मेमोरी खाली करना"
+  },
+  {
+    question: `Which built-in function would you use to convert a string to an integer?\nString को integer में बदलने के लिए कौन सा built-in function उपयोग करेंगे?`,
+    options: [
+      "str()",
+      "int()",
+      "float()",
+      "convert()"
+    ],
+    answer: "int()"
+  },
+  {
+    question: `What does the with statement do in file handling?\nफ़ाइल हैंडलिंग में with statement क्या करता है?`,
+    options: [
+      "Opens multiple files at once / एक साथ कई फ़ाइलें खोलता है",
+      "Automatically closes the file after the block is executed / कोड ब्लॉक खत्म होने के बाद फ़ाइल अपने आप बंद कर देता है",
+      "Reads the whole file content / पूरी फ़ाइल पढ़ता है",
+      "Writes data to the file / फ़ाइल में डेटा लिखता है"
+    ],
+    answer: "Automatically closes the file after the block is executed / कोड ब्लॉक खत्म होने के बाद फ़ाइल अपने आप बंद कर देता है"
+  },
+  {
+    question: `How do you document a function in Python?\nPython में function का documentation कैसे लिखते हैं?`,
+    options: [
+      "Using single-line comments only / केवल एक लाइन के कमेंट से",
+      "Using docstrings inside triple quotes \"\"\" \"\"\" / triple quotes में docstrings का उपयोग करके",
+      "Using the # symbol before the function / function के आगे # प्रतीक लगाकर",
+      "Using @doc decorator / @doc डेकोरेटर का उपयोग करके"
+    ],
+    answer: "Using docstrings inside triple quotes \"\"\" \"\"\" / triple quotes में docstrings का उपयोग करके"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

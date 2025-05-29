@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: "Which of the following can be present in both Abstract Class and Interface (Java 8+)?",
+    options: [
+      "Constructors",
+      "Static Methods",
+      "Instance Variables",
+      "Private Constructors"
+    ],
+    answer: "Static Methods"
+  },
+  {
+    question: "Which of the following is true about method overriding in Java?",
+    options: [
+      "Static methods can be overridden",
+      "Final methods can be overridden",
+      "Method overriding occurs at compile time",
+      "Method overriding is a runtime polymorphism feature"
+    ],
+    answer: "Method overriding is a runtime polymorphism feature"
+  },
+  {
+    question: "What is the purpose of abstraction in Java? / Java में abstraction का मुख्य उद्देश्य क्या है?",
+    options: [
+      "Code duplication",
+      "Memory saving",
+      "Hiding implementation details and showing only essential features",
+      "Faster execution"
+    ],
+    answer: "Hiding implementation details and showing only essential features"
+  },
+   {
+    question: "What will happen if you try to create an object of an abstract class? / अगर आप किसी abstract class का object बनाने की कोशिश करते हैं तो क्या होगा?",
+    options: [
+      "Object बन जाएगा",
+      "Compile-time error",
+      "Run-time error",
+      "Nothing happens"
+    ],
+    answer: "Compile-time error",
+    explanation: "Abstract class का object सीधे नहीं बनाया जा सकता। इसे subclass से inherit करना पड़ता है।"
+  },
+  {
+    question: "Which of the following is true about abstract classes in Java? / Java में abstract classes के बारे में कौन-सा सही है?",
+    options: [
+      "Abstract classes can be instantiated",
+      "Abstract classes cannot have concrete (regular) methods",
+      "Abstract classes must have at least one abstract method",
+      "Abstract classes can have both abstract and non-abstract methods"
+    ],
+    answer: "Abstract classes can have both abstract and non-abstract methods",
+    explanation: "Abstract class में abstract methods के साथ-साथ concrete methods भी हो सकते हैं।"
+  },
+  {
+    question: "What is the correct declaration of an abstract method? / निम्नलिखित में से कौन-सा abstract method का सही syntax है?",
+    options: [
+      "public void show() {}",
+      "public abstract void show();",
+      "abstract show() void;",
+      "void show() abstract;"
+    ],
+    answer: "public abstract void show();",
+    explanation: "Abstract method का body नहीं होता, और वह class में केवल declare होता है।"
+  },
+  {
+    question: "Where can an abstract method exist in Java? / Java में abstract method कहाँ हो सकता है?",
+    options: [
+      "In any class",
+      "Only in a final class",
+      "Only in an abstract class",
+      "In interface only"
+    ],
+    answer: "Only in an abstract class",
+    explanation: "Abstract method केवल abstract class के अंदर ही हो सकता है।"
+  },
+  {
+    question: `What is the output of the following code?
+abstract class Animal {
+    public abstract void animalSound();
+    public void sleep() {
+        System.out.println("Zzz");
+    }
+}
+class Pig extends Animal {
+    public void animalSound() {
+        System.out.println("The pig says: wee wee");
+    }
+}
+class Main {
+    public static void main(String[] args) {
+        Pig myPig = new Pig();
+        myPig.animalSound();
+        myPig.sleep();
+    }
+}`,
+    options: [
+      "Compilation error",
+      "The pig says: wee wee\nZzz",
+      "The pig says: wee wee\nError",
+      "Zzz only"
+    ],
+    answer: "The pig says: wee wee\nZzz",
+    explanation: "Pig class ने animalSound() को override किया है और sleep() method abstract class से inherited है।"
+  },
+  {
+    question: "Which keyword is used to define an abstract class or method in Java? / Java में abstract class या method घोषित करने के लिए कौन-सा keyword उपयोग होता है?",
+    options: [
+      "interface",
+      "extends",
+      "final",
+      "abstract"
+    ],
+    answer: "abstract"
+  },
+  {
+    question: "Which of the following is NOT allowed in an abstract class? / Abstract class में निम्नलिखित में से क्या allowed नहीं है?",
+    options: [
+      "Constructors",
+      "Static methods",
+      "Object creation",
+      "Non-abstract methods"
+    ],
+    answer: "Object creation",
+    explanation: "Abstract class का object नहीं बनाया जा सकता।"
+  },
+  {
+    question: "Can an abstract class have a main() method in Java? / क्या abstract class में main() method हो सकता है?",
+    options: [
+      "No",
+      "Yes, but cannot run",
+      "Yes, and it can run",
+      "Only if inherited"
+    ],
+    answer: "Yes, and it can run",
+    explanation: "Abstract class में main method हो सकती है और उसे रन भी किया जा सकता है।"
+  },
+  {
+    question: "Why do we use abstract classes? / हम abstract classes क्यों उपयोग करते हैं?",
+    options: [
+      "To force subclasses to implement certain methods",
+      "To create objects",
+      "For file operations",
+      "To hide public methods"
+    ],
+    answer: "To force subclasses to implement certain methods",
+    explanation: "Abstract class का उद्देश्य होता है कि subclasses जरूरी methods को implement करें।"
+  },
+  {
+    question: "Which keyword is used to declare an abstract class in Java? / Java में abstract class को घोषित करने के लिए कौन-सा कीवर्ड प्रयोग होता है?",
+    options: [
+      "final",
+      "class",
+      "abstract",
+      "interface"
+    ],
+    answer: "abstract"
+  },
+  {
+    question: "Which of the following is TRUE about an abstract class? / निम्नलिखित में से abstract class के बारे में कौन-सा सही है?",
+    options: [
+      "It cannot have any non-abstract methods / इसमें कोई non-abstract methods नहीं हो सकते",
+      "It must contain at least one abstract method / इसमें कम से कम एक abstract method होना जरूरी है",
+      "It can have both abstract and non-abstract methods / इसमें abstract और non-abstract दोनों methods हो सकते हैं",
+      "It cannot contain constructors / इसमें constructors नहीं हो सकते"
+    ],
+    answer: "It can have both abstract and non-abstract methods / इसमें abstract और non-abstract दोनों methods हो सकते हैं"
+  },
+  {
+    question: "Can an abstract class in Java be instantiated? / क्या Java में abstract class का object बनाया जा सकता है?",
+    options: [
+      "Yes, always / हाँ, हमेशा",
+      "Only if it has a main() method / केवल अगर इसमें main() method हो",
+      "No / नहीं",
+      "Only in case of inner class / केवल inner class के लिए"
+    ],
+    answer: "No / नहीं"
+  },
+  {
+    question: "Which of the following can an abstract class contain? / Abstract class में निम्नलिखित में से क्या हो सकता है?",
+    options: [
+      "Abstract methods only / केवल abstract methods",
+      "Final methods only / केवल final methods",
+      "Static methods, constructors, and final methods / Static methods, constructors और final methods",
+      "Only static variables / केवल static variables"
+    ],
+    answer: "Static methods, constructors, and final methods / Static methods, constructors और final methods"
+  },
+  {
+    question: "What feature of abstract class supports hiding implementation details from the user? / Abstract class की कौन-सी विशेषता उपयोगकर्ता से implementation details छुपाने में मदद करती है?",
+    options: [
+      "Inheritance / विरासत",
+      "Encapsulation / संक्षारण",
+      "Abstraction / अमूर्तन",
+      "Polymorphism / बहुरूपता"
+    ],
+    answer: "Abstraction / अमूर्तन"
+  },
+  {
+    question: "Which feature of abstract class helps reduce dependency between classes? / Abstract class की कौन-सी विशेषता classes के बीच dependency कम करती है?",
+    options: [
+      "Dynamic Binding / डायनामिक बाइंडिंग",
+      "Loose Coupling / कमजोर जोड़ना",
+      "Encapsulation / संक्षारण",
+      "Static Resolution / स्थिर समाधान"
+    ],
+    answer: "Loose Coupling / कमजोर जोड़ना",
+    explanation: "Loose Coupling abstraction के जरिये प्राप्त होती है, जो code dependencies को कम करती है।"
+  },
+  {
+    question: "How does an abstract class help with code reusability? / Abstract class कोड पुन: उपयोग में कैसे मदद करता है?",
+    options: [
+      "By allowing multiple inheritance / multiple inheritance की अनुमति देकर",
+      "By allowing method overloading / method overloading की अनुमति देकर",
+      "By defining abstract methods once and reusing through subclasses / abstract methods को एक बार परिभाषित कर subclasses में पुन: उपयोग करके",
+      "By avoiding constructors / constructors से बचकर"
+    ],
+    answer: "By defining abstract methods once and reusing through subclasses / abstract methods को एक बार परिभाषित कर subclasses में पुन: उपयोग करके"
+  },
+  {
+    question: "What does dynamic resolution in context of abstract classes refer to? / Abstract classes के संदर्भ में dynamic resolution का क्या मतलब है?",
+    options: [
+      "Resolving classpath issues / classpath समस्याओं का समाधान",
+      "Resolving method calls at compile time / compile time पर method कॉल का समाधान",
+      "Resolving method calls at runtime using polymorphism / runtime पर polymorphism से method कॉल का समाधान",
+      "Resolving constructors dynamically / constructors को dynamic रूप से हल करना"
+    ],
+    answer: "Resolving method calls at runtime using polymorphism / runtime पर polymorphism से method कॉल का समाधान",
+    explanation: "Dynamic resolution runtime polymorphism को कहते हैं, जहाँ सही method execution समय पर चुना जाता है।"
+  },
+  {
+    question: "Which of the following is NOT a benefit of abstract class? / निम्नलिखित में से कौन abstract class का लाभ नहीं है?",
+    options: [
+      "Data abstraction / डेटा अमूर्तन",
+      "Code duplication / कोड पुनरावृत्ति",
+      "Loose coupling / कमजोर जोड़ना",
+      "Code reusability / कोड पुन: उपयोग"
+    ],
+    answer: "Code duplication / कोड पुनरावृत्ति",
+    explanation: "Abstract class कोड पुनरावृत्ति को कम करता है, उसे बढ़ावा नहीं देता।"
+  },
+  {
+    question: "Which of the following statements about abstract classes is FALSE? / abstract classes के बारे में निम्नलिखित में से कौन-सा कथन गलत है?",
+    options: [
+      "An abstract class can have static methods / abstract class में static methods हो सकते हैं",
+      "An abstract class can have constructors / abstract class में constructors हो सकते हैं",
+      "An abstract class must be inherited to be used / abstract class का उपयोग करने के लिए इसे inherit करना आवश्यक है",
+      "An abstract class can be instantiated directly / abstract class का सीधे object बनाया जा सकता है"
+    ],
+    answer: "An abstract class can be instantiated directly / abstract class का सीधे object बनाया जा सकता है"
+  },
+  {
+    question: "What is an interface in Java? / Java में Interface क्या है?",
+    options: [
+      "A class with all static methods / सभी static methods वाली class",
+      "A blueprint of a class with abstract methods and constants / abstract methods और constants वाली class का blueprint",
+      "A final class with only constructors / केवल constructors वाली final class",
+      "A subclass of an abstract class / abstract class की subclass"
+    ],
+    answer: "A blueprint of a class with abstract methods and constants / abstract methods और constants वाली class का blueprint",
+    explanation: "Interface में केवल abstract methods और static constants होते हैं, यह एक blueprint होता है।"
+  },
+  {
+    question: "Which of the following can an interface contain by default (Java 7 and earlier)? / Java 7 और पहले version में interface में क्या हो सकता है?",
+    options: [
+      "Abstract methods only / केवल abstract methods",
+      "Method bodies / method के body",
+      "Instance variables / instance variables",
+      "Constructors / constructors"
+    ],
+    answer: "Abstract methods only / केवल abstract methods"
+  },
+  {
+    question: "From which Java version can interfaces have default and static methods? / Java के किस version से interfaces में default और static methods हो सकते हैं?",
+    options: [
+      "Java 6",
+      "Java 7",
+      "Java 8",
+      "Java 9"
+    ],
+    answer: "Java 8"
+  },
+   {
+    question: "Since which Java version can interfaces have private methods? / Java के किस version से interfaces में private methods हो सकते हैं?",
+    options: [
+      "Java 6",
+      "Java 8",
+      "Java 9",
+      "Java 10"
+    ],
+    answer: "Java 9"
+  },
+  {
+    question: "Can we create an object of an interface in Java? / क्या Java में interface का object बनाया जा सकता है?",
+    options: [
+      "Yes / हाँ",
+      "No / नहीं",
+      "Only if it has static methods / केवल अगर इसमें static methods हों",
+      "Only through anonymous classes / केवल anonymous classes के द्वारा"
+    ],
+    answer: "No / नहीं",
+    explanation: "Interface को instantiate (object बनाना) नहीं किया जा सकता।"
+  },
+  {
+    question: "What type of relationship does an interface represent in Java? / Java में interface किस प्रकार का संबंध दर्शाता है?",
+    options: [
+      "HAS-A",
+      "CAN-A",
+      "IS-A",
+      "USES-A"
+    ],
+    answer: "IS-A",
+    explanation: "Interface IS-A relationship को दर्शाता है क्योंकि class interface को implement करके उसका रूप लेती है।"
+  },
+  {
+    question: "Which of the following is true about variables declared in an interface? / Interface में declare किए गए variables के बारे में कौन-सा सही है?",
+    options: [
+      "They are public, static, and final by default / वे default रूप से public, static, और final होते हैं",
+      "They are private and final / वे private और final होते हैं",
+      "They can be instance variables / वे instance variables हो सकते हैं",
+      "They are mutable / वे mutable होते हैं"
+    ],
+    answer: "They are public, static, and final by default / वे default रूप से public, static, और final होते हैं"
+  },
+  {
+    question: "One of the major advantages of using interfaces in Java is: / Java में interfaces उपयोग करने का एक मुख्य लाभ क्या है?",
+    options: [
+      "Simplifies multithreading / मल्टीथ्रेडिंग को आसान बनाना",
+      "Enables multiple inheritance / multiple inheritance की अनुमति देना",
+      "Increases memory usage / मेमोरी उपयोग बढ़ाना",
+      "Slows down execution / execution धीमा करना"
+    ],
+    answer: "Enables multiple inheritance / multiple inheritance की अनुमति देना"
+  },
+  {
+    question: "What happens if a class does not implement all methods of an interface? / अगर कोई class interface के सभी methods implement न करे तो क्या होता है?",
+    options: [
+      "It compiles normally / यह सामान्य रूप से compile होता है",
+      "It becomes an abstract class / यह abstract class बन जाता है",
+      "It throws runtime error / runtime error होता है",
+      "It ignores the interface / यह interface को ignore करता है"
+    ],
+    answer: "It becomes an abstract class / यह abstract class बन जाता है"
+  },
+  {
+    question: "Which of the following statements is FALSE about interfaces in Java? / Java में interfaces के बारे में कौन-सा कथन गलत है?",
+    options: [
+      "Interfaces support abstraction / Interfaces अमूर्तन का समर्थन करते हैं",
+      "Interfaces can have constructors / Interfaces में constructors हो सकते हैं",
+      "Interfaces can have static methods (Java 8+) / Interfaces में static methods हो सकते हैं (Java 8+)",
+      "Interfaces can have private methods (Java 9+) / Interfaces में private methods हो सकते हैं (Java 9+)"
+    ],
+    answer: "Interfaces can have constructors / Interfaces में constructors हो सकते हैं",
+    explanation: "Interface में constructors नहीं होते क्योंकि उनका object नहीं बनता।"
+  },
+  {
+    question: "What is method overriding in Java? / Java में Method Overriding क्या है?",
+    options: [
+      "When subclass hides a variable from parent class / जब subclass parent class का variable छुपाता है",
+      "When subclass has a method with different name from parent / जब subclass का method नाम parent से अलग हो",
+      "When subclass provides its own implementation of a method declared in parent class / जब subclass parent class के method का अपना implementation देता है",
+      "When subclass inherits methods only / जब subclass केवल methods inherit करता है"
+    ],
+    answer: "When subclass provides its own implementation of a method declared in parent class / जब subclass parent class के method का अपना implementation देता है"
+  },
+  {
+    question: "Which of the following is true about method overriding? / Method overriding के बारे में कौन-सा सही है?",
+    options: [
+      "It happens at compile time / यह compile time पर होता है",
+      "It is used for method overloading / यह method overloading के लिए उपयोग होता है",
+      "It supports runtime polymorphism / यह runtime polymorphism का समर्थन करता है",
+      "Overridden method must be static / overridden method static होना चाहिए"
+    ],
+    answer: "It supports runtime polymorphism / यह runtime polymorphism का समर्थन करता है",
+    explanation: "Method overriding runtime polymorphism (Dynamic Method Dispatch) को सक्षम बनाता है।"
+  },
+  {
+    question: "What are the requirements for method overriding? / Method overriding के लिए आवश्यकताएँ क्या हैं?",
+    options: [
+      "Method name must differ / method का नाम अलग होना चाहिए",
+      "Method must have different parameters / method के parameters अलग होने चाहिए",
+      "Method must have same name and parameters, and there must be IS-A relationship / method का नाम और parameters same होने चाहिए, और IS-A संबंध होना चाहिए",
+      "Class must be abstract / class abstract होनी चाहिए"
+    ],
+    answer: "Method must have same name and parameters, and there must be IS-A relationship / method का नाम और parameters same होने चाहिए, और IS-A संबंध होना चाहिए"
+  },
+  {
+    question: "Which keyword is commonly used to refer to the parent class method in case of overriding? / Overriding में parent class के method को refer करने के लिए कौन-सा keyword सामान्यत: उपयोग होता है?",
+    options: [
+      "this",
+      "super",
+      "final",
+      "override"
+    ],
+    answer: "super"
+  },
+   {
+    question: `5. What will be the output of the following code?\n
+class Vehicle {
+    void run() {
+        System.out.println("Vehicle is running");
+    }
+}
+class Bike extends Vehicle {
+    void run() {
+        System.out.println("Bike is running safely");
+    }
+    public static void main(String args[]) {
+        Bike obj = new Bike();
+        obj.run();
+    }
+}\n
+कोड का आउटपुट क्या होगा?`,
+    options: [
+      "Vehicle is running",
+      "Compilation error",
+      "Bike is running safely",
+      "No output"
+    ],
+    answer: "Bike is running safely"
+  },
+  {
+    question: "6. Which of the following methods cannot be overridden in Java? / Java में निम्न में से कौन-से methods override नहीं किए जा सकते?",
+    options: [
+      "Private methods / private method",
+      "Final methods / final method",
+      "Static methods / static method",
+      "All of the above / उपरोक्त सभी"
+    ],
+    answer: "All of the above / उपरोक्त सभी",
+    explanation: "private, final, और static methods को override नहीं किया जा सकता।"
+  },
+  {
+    question: "7. Can method overriding occur without inheritance? / क्या method overriding बिना inheritance के हो सकता है?",
+    options: [
+      "Yes / हाँ",
+      "No / नहीं"
+    ],
+    answer: "No / नहीं",
+    explanation: "Overriding तभी संभव है जब दो classes में IS-A (inheritance) संबंध हो।"
+  },
+  {
+    question: "8. In method overriding, which method is executed at runtime? / Method overriding में runtime पर कौन-सा method execute होता है?",
+    options: [
+      "Parent class method / Parent class का method",
+      "The method according to reference type / Reference type के अनुसार method",
+      "The method according to object type / Object type के अनुसार method",
+      "All of the above / उपरोक्त सभी"
+    ],
+    answer: "The method according to object type / Object type के अनुसार method",
+    explanation: "Overridden method का निर्णय runtime पर object के type के अनुसार होता है।"
+  },
+  {
+    question: "9. What is the main advantage of method overriding? / Method overriding का मुख्य लाभ क्या है?",
+    options: [
+      "Compile-time safety / Compile-time सुरक्षा",
+      "Faster execution / तेज execution",
+      "Achieving runtime polymorphism / Runtime polymorphism प्राप्त करना",
+      "Reduced inheritance / Inheritance कम करना"
+    ],
+    answer: "Achieving runtime polymorphism / Runtime polymorphism प्राप्त करना"
+  },
+  {
+    question: "10. What happens if the method in subclass has a different parameter than in the parent class? / यदि subclass में method के parameter parent से अलग हों तो क्या होगा?",
+    options: [
+      "Method will be overridden / Method override होगा",
+      "It will be method overloading, not overriding / यह method overloading होगा, overriding नहीं",
+      "Compile-time error / Compile-time error होगा",
+      "Runtime exception / Runtime exception होगा"
+    ],
+    answer: "It will be method overloading, not overriding / यह method overloading होगा, overriding नहीं"
+  },
+  {
+    question: "1. What does Polymorphism mean in Java? / Java में Polymorphism का क्या अर्थ है?",
+    options: [
+      "One form / एक रूप",
+      "Many forms / अनेक रूप",
+      "One class / एक class",
+      "Many classes without inheritance / बिना inheritance के कई classes"
+    ],
+    answer: "Many forms / अनेक रूप"
+  },
+  {
+    question: "2. Polymorphism is possible in Java because of which feature? / Java में Polymorphism किस feature की वजह से संभव है?",
+    options: [
+      "Encapsulation / इनकैप्सुलेशन",
+      "Inheritance / इनहेरिटेंस",
+      "Abstraction / अमूर्तन",
+      "Interface / इंटरफेस"
+    ],
+    answer: "Inheritance / इनहेरिटेंस",
+    explanation: "Polymorphism inheritance पर निर्भर करता है जहाँ subclass superclass के method का अपना specific implementation देता है।"
+  },
+  {
+    question: `3. Which of the following best describes method overriding related to polymorphism?\n
+    Polymorphism से संबंधित method overriding को सबसे सही तरीके से कौन सा वर्णन करता है?`,
+    options: [
+      "Same method name with different parameters / एक ही method नाम लेकिन अलग parameters",
+      "Same method name and parameters in subclass and superclass with different implementation / subclass और superclass में एक ही नाम और parameters के साथ अलग implementation",
+      "Different method name with same parameters / अलग method नाम लेकिन एक जैसे parameters",
+      "Only static methods can be overridden / केवल static methods को ही override किया जा सकता है"
+    ],
+    answer: "Same method name and parameters in subclass and superclass with different implementation / subclass और superclass में एक ही नाम और parameters के साथ अलग implementation"
+  },
+  {
+    question: `4. What is the output of the following code?\n
+class Animal {
+  public void animalSound() {
+    System.out.println("The animal makes a sound");
+  }
+}
+
+class Pig extends Animal {
+  public void animalSound() {
+    System.out.println("The pig says: wee wee");
+  }
+}
+
+public class Test {
+  public static void main(String[] args) {
+    Animal myAnimal = new Pig();
+    myAnimal.animalSound();
+  }
+}\n
+इस कोड का आउटपुट क्या होगा?`,
+    options: [
+      "The animal makes a sound",
+      "The pig says: wee wee",
+      "Compile-time error",
+      "Runtime error"
+    ],
+    answer: "The pig says: wee wee"
+  },
+  {
+    question: "5. What type of polymorphism is method overriding in Java? / Java में method overriding किस प्रकार का polymorphism है?",
+    options: [
+      "Compile-time polymorphism / Compile-time polymorphism",
+      "Runtime polymorphism / Runtime polymorphism",
+      "Static polymorphism / Static polymorphism",
+      "Operator overloading / Operator overloading"
+    ],
+    answer: "Runtime polymorphism / Runtime polymorphism"
+  },
+  {
+    question: "6. Which of the following is NOT an example of polymorphism? / निम्न में से कौन polymorphism का उदाहरण नहीं है?",
+    options: [
+      "Method Overloading / Method Overloading",
+      "Method Overriding / Method Overriding",
+      "Multiple Inheritance / Multiple Inheritance",
+      "Dynamic method dispatch / Dynamic method dispatch"
+    ],
+    answer: "Multiple Inheritance / Multiple Inheritance",
+    explanation: "Multiple inheritance inheritance का एक रूप है, polymorphism नहीं।"
+  },
+  {
+    question: "7. Which mechanism allows the JVM to decide which method to call at runtime? / JVM runtime पर कौन सा mechanism उपयोग करता है method call तय करने के लिए?",
+    options: [
+      "Static binding / Static binding",
+      "Dynamic binding / Dynamic binding",
+      "Early binding / Early binding",
+      "Method overloading / Method overloading"
+    ],
+    answer: "Dynamic binding / Dynamic binding"
+  },
+  {
+    question: "8. Can polymorphism be achieved without inheritance? / क्या polymorphism inheritance के बिना संभव है?",
+    options: [
+      "Yes / हाँ",
+      "No / नहीं"
+    ],
+    answer: "No / नहीं"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

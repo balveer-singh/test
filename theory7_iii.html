@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: `डिक्शनरी में सभी keys को प्राप्त करने के लिए कौन-सा method उपयोग किया जाता है?\n
+    Which method is used to get all keys from a dictionary?`,
+    options: ["keys()", "get()", "items()", "values()"],
+    answer: "keys()"
+  },
+  {
+    question: `किसी key की value को safely प्राप्त करने के लिए कौन-सा method इस्तेमाल किया जाता है?\n
+    Which method is used to safely get the value of a key?`,
+    options: ["value()", "items()", "get()", "fetch()"],
+    answer: "get()"
+  },
+  {
+    question: `डिक्शनरी को पूरी तरह खाली करने के लिए कौन-सा method प्रयोग करते हैं?\n
+    Which method is used to clear all items in a dictionary?`,
+    options: ["clear()", "delete()", "removeall()", "empty()"],
+    answer: "clear()"
+  },
+  {
+    question: `Python में array की तरह किस डेटा टाइप का उपयोग किया जाता है?\n
+    Which data type is used like an array in Python?`,
+    options: ["Set", "Dictionary", "List", "Tuple"],
+    answer: "List"
+  },
+  {
+    question: `निम्नलिखित में से कौन सही array (list) निर्माण है?\n
+    Which is the correct way to create a list?`,
+    options: [
+      `cars = {"Ford", "BMW"}`,
+      `cars = ("Ford", "BMW")`,
+      `cars = ["Ford", "BMW"]`,
+      `cars = <"Ford", "BMW">`
+    ],
+    answer: `cars = ["Ford", "BMW"]`
+  },
+  {
+    question: `cars[0] का अर्थ है:\n
+    What does cars[0] mean?`,
+    options: [
+      "लिस्ट का अंतिम आइटम",
+      "पहला आइटम",
+      "एक नया आइटम",
+      "None"
+    ],
+    answer: "पहला आइटम"
+  },
+  {
+    question: `cars.append("Honda") क्या करता है?\n
+    What does cars.append("Honda") do?`,
+    options: [
+      `"Honda" को लिस्ट के बीच में जोड़ता है`,
+      `"Honda" को डिलीट करता है`,
+      `"Honda" को लिस्ट के अंत में जोड़ता है`,
+      "Error देता है"
+    ],
+    answer: `"Honda" को लिस्ट के अंत में जोड़ता है`
+  },
+  {
+    question: `cars.pop(1) से क्या होगा?\n
+    What happens when cars.pop(1) is called?`,
+    options: [
+      "पहला आइटम हटेगा",
+      "दूसरा आइटम हटेगा",
+      "आखिरी आइटम हटेगा",
+      "सभी आइटम हटेंगे"
+    ],
+    answer: "दूसरा आइटम हटेगा"
+  },
+  {
+    question: `लिस्ट की लंबाई जानने के लिए कौन-सा फ़ंक्शन प्रयोग किया जाता है?\n
+    Which function is used to find the length of a list?`,
+    options: ["count()", "size()", "len()", "length()"],
+    answer: "len()"
+  },
+  {
+    question: `list को modify करने के लिए कौन-सी विशेषता सही है?\n
+    Which property applies to lists to modify them?`,
+    options: ["Immutable", "Mutable", "Unordered", "Indexed"],
+    answer: "Mutable"
+  },
+  {
+    question: `What is an iterator in Python?\n
+    Python में iterator क्या है?`,
+    options: [
+      "A function",
+      "An object with __iter__() and __next__() methods",
+      "A list",
+      "A loop"
+    ],
+    answer: "An object with __iter__() and __next__() methods"
+  },
+  {
+    question: `Which method returns the next item from the iterator?\n
+    Iterator से अगला आइटम प्राप्त करने वाला method कौन-सा है?`,
+    options: ["__iter__()", "__next__()", "nextitem()", "next()"],
+    answer: "__next__()"
+  },
+  {
+    question: `What will iter("banana") return?\n
+    iter("banana") क्या लौटाएगा?`,
+    options: [
+      "A string",
+      "A list of characters",
+      "An iterator object",
+      "Error"
+    ],
+    answer: "An iterator object"
+  },
+   {
+    question: `Which keyword is used to import a module in Python?\n
+    Python में किसी module को import करने के लिए कौन-सा keyword इस्तेमाल होता है?`,
+    options: ["include", "require", "import", "using"],
+    answer: "import"
+  },
+  {
+    question: `What will 'import math' allow you to do?\n
+    'import math' करने से आप क्या कर पाएंगे?`,
+    options: [
+      "Use all Python functions",
+      "Use mathematical operators only",
+      "Use math functions like sqrt(), sin()",
+      "Nothing, it only creates a variable"
+    ],
+    answer: "Use math functions like sqrt(), sin()"
+  },
+  {
+    question: `How can you import only the sqrt() function from math module?\n
+    math module से केवल sqrt() function को कैसे import करते हैं?`,
+    options: [
+      "from math import sqrt",
+      "include math.sqrt",
+      "require math.sqrt()",
+      "from math.sqrt import *"
+    ],
+    answer: "from math import sqrt"
+  },
+  {
+    question: `Which module is used to work with dates and times in Python?\n
+    Python में तारीख़ और समय के साथ काम करने के लिए कौन-सा module उपयोग होता है?`,
+    options: ["calendar", "datetime", "time", "date"],
+    answer: "datetime"
+  },
+  {
+    question: `What does datetime.datetime.now() return?\n
+    datetime.datetime.now() क्या लौटाता है?`,
+    options: [
+      "Current date only",
+      "Current time only",
+      "Current date and time",
+      "Time since epoch"
+    ],
+    answer: "Current date and time"
+  },
+  {
+    question: `What does time.time() return?\n
+    time.time() क्या लौटाता है?`,
+    options: [
+      "Current hour",
+      "Seconds since Unix epoch",
+      "A time object",
+      "Current date"
+    ],
+    answer: "Seconds since Unix epoch"
+  },
+  {
+    question: `Which of the following is used to find the square root using math module?\n
+    math module में square root निकालने के लिए कौन-सा function है?`,
+    options: ["math.pow()", "math.square()", "math.sqrt()", "math.root()"],
+    answer: "math.sqrt()"
+  },
+  {
+    question: `What is the output of math.factorial(5)?\n
+    math.factorial(5) का आउटपुट क्या होगा?`,
+    options: ["15", "120", "60", "24"],
+    answer: "120"
+  },
+  {
+    question: `What does math.e return?\n
+    math.e क्या लौटाता है?`,
+    options: [
+      "Value of pi",
+      "Euler's number",
+      "2.0",
+      "Error"
+    ],
+    answer: "Euler's number"
+  },
+  {
+    question: `Which function is used for user input in Python 3?\n
+    Python 3 में यूजर से इनपुट लेने के लिए कौन-सा function उपयोग होता है?`,
+    options: ["input()", "raw_input()", "scanf()", "gets()"],
+    answer: "input()"
+  },
+  {
+    question: `What is the data type of input taken from input() function?\n
+    input() function से लिया गया इनपुट किस डेटा टाइप का होता है?`,
+    options: ["Integer", "Float", "String", "Boolean"],
+    answer: "String"
+  },
+  {
+    question: `How can you convert a user input into an integer?\n
+    यूजर का इनपुट integer में कैसे बदलें?`,
+    options: [
+      "int(input())",
+      "input.int()",
+      "toInt(input)",
+      "input.convert(int)"
+    ],
+    answer: "int(input())"
+  },
+    {
+    question: `What does the input() function in Python do?\nPython में input() फंक्शन क्या करता है?`,
+    options: [
+      "Executes code / कोड चलाता है",
+      "Takes input from the user as a string / यूजर से स्ट्रिंग इनपुट लेता है",
+      "Displays output / आउटपुट दिखाता है",
+      "Converts values to integer / वैल्यू को integer में बदलता है"
+    ],
+    answer: "Takes input from the user as a string / यूजर से स्ट्रिंग इनपुट लेता है"
+  },
+  {
+    question: `What is the default data type returned by input()?\ninput() से डिफॉल्ट कौन-सा डेटा टाइप वापस आता है?`,
+    options: [
+      "int",
+      "float",
+      "str",
+      "bool"
+    ],
+    answer: "str"
+  },
+  {
+    question: `How can you convert user input to an integer?\nयूजर का इनपुट integer में कैसे बदलें?`,
+    options: [
+      "input.int()",
+      "toInt(input())",
+      "int(input())",
+      "input(convert=int)"
+    ],
+    answer: "int(input())"
+  },
+  {
+    question: `Which function can be used to take multiple inputs of the same type?\nएक ही प्रकार के multiple inputs लेने के लिए कौन-सा फंक्शन यूज़ किया जाता है?`,
+    options: [
+      "map()",
+      "list()",
+      "tuple()",
+      "split()"
+    ],
+    answer: "map()"
+  },
+  {
+    question: `What will be the output of the following code?\na, b = map(int, input("Enter numbers: ").split())\nprint(a + b)\nIf user enters: 10 20\nनीचे दिए गए कोड का आउटपुट क्या होगा?`,
+    options: [
+      "1020",
+      "30",
+      "10 20",
+      "Error"
+    ],
+    answer: "30"
+  },
+
+  // Python Output
+  {
+    question: `Which function is used to display output in Python?\nPython में आउटपुट दिखाने के लिए कौन-सा फंक्शन इस्तेमाल होता है?`,
+    options: [
+      "input()",
+      "read()",
+      "output()",
+      "print()"
+    ],
+    answer: "print()"
+  },
+  {
+    question: `What is the default separator between multiple values in print() function?\nprint() में multiple values के बीच डिफॉल्ट separator क्या होता है?`,
+    options: [
+      "Comma ,",
+      "Underscore _",
+      "Empty string ''",
+      "Space ' '"
+    ],
+    answer: "Space ' '"
+  },
+  {
+    question: `What is the purpose of sep parameter in print()?\nprint() के sep पैरामीटर का क्या काम है?`,
+    options: [
+      "To add space between characters / अक्षरों के बीच स्पेस जोड़ना",
+      "To change output location / आउटपुट की जगह बदलना",
+      "To specify how values are separated / यह बताना कि वैल्यूज कैसे अलग हों",
+      "To flush output / आउटपुट को फ्लश करना"
+    ],
+    answer: "To specify how values are separated / यह बताना कि वैल्यूज कैसे अलग हों"
+  },
+  {
+    question: `Which parameter in print() changes what is printed at the end?\nprint() में कौन-सा पैरामीटर आउटपुट के अंत को बदलता है?`,
+    options: [
+      "sep",
+      "end",
+      "file",
+      "flush"
+    ],
+    answer: "end"
+  },
+  {
+    question: `What is the output of the following code?\nprint("NSTI", end="@")\nprint("J", "S", "A", sep="#")\nनीचे दिए गए कोड का आउटपुट क्या होगा?`,
+    options: [
+      "NSTI J#S#A",
+      "NSTI@J#S#A",
+      "NSTI@J S A",
+      "Error"
+    ],
+    answer: "NSTI@J#S#A"
+  },
+
+  // Formatted String Literals (f-strings)
+  {
+    question: `What does the f before a string indicate in Python?\nPython में string के पहले f का मतलब क्या होता है?`,
+    options: [
+      "It's a float string / फ्लोट स्ट्रिंग है",
+      "It's a formatted string literal / फॉर्मेटेड स्ट्रिंग लिटरल है",
+      "It's a function string / फंक्शन स्ट्रिंग है",
+      "It's a file string / फाइल स्ट्रिंग है"
+    ],
+    answer: "It's a formatted string literal / फॉर्मेटेड स्ट्रिंग लिटरल है"
+  },
+  {
+    question: `Choose the correct way to use an f-string.\nf-string को सही तरीके से कैसे इस्तेमाल करें?`,
+    options: [
+      "f'Hello {name}'",
+      "f(\"Hello\", name)",
+      "'Hello {name}'f",
+      "format(f'Hello {name}')"
+    ],
+    answer: "f'Hello {name}'"
+  },
+  {
+    question: `What is the output of this code?\nname = "Nsti"\nprint(f'Hello {name}! How are you?')\nइस कोड का आउटपुट क्या होगा?`,
+    options: [
+      "Hello name! How are you?",
+      "Hello {name}! How are you?",
+      "Hello Nsti! How are you?",
+      "Error"
+    ],
+    answer: "Hello Nsti! How are you?"
+  },
+
+  // Basics of Functions
+  {
+    question: `What keyword is used to define a function in Python?\nPython में function को define करने के लिए कौन-सा keyword यूज़ होता है?`,
+    options: [
+      "function",
+      "define",
+      "def",
+      "func"
+    ],
+    answer: "def"
+  },
+  {
+    question: `What is the main purpose of using functions in Python?\nPython में functions का मुख्य उद्देश्य क्या है?`,
+    options: [
+      "Increase memory usage / मेमोरी बढ़ाना",
+      "Avoid loops / लूप से बचना",
+      "Organize code and reuse logic / कोड को व्यवस्थित करना और पुनः उपयोग करना",
+      "Reduce the number of files / फाइलों की संख्या कम करना"
+    ],
+    answer: "Organize code and reuse logic / कोड को व्यवस्थित करना और पुनः उपयोग करना"
+  },
+  {
+    question: `What will be the output of the following code?\ndef greet():\n    print("Hello, world!")\ngreet()\nनीचे दिए गए कोड का आउटपुट क्या होगा?`,
+    options: [
+      "Nothing / कुछ नहीं",
+      "greet",
+      "Hello, world!",
+      "Error / त्रुटि"
+    ],
+    answer: "Hello, world!"
+  },
+
+  // Function Arguments
+  {
+    question: `Which of the following is NOT a type of argument in Python?\nPython में निम्नलिखित में से कौन-सा argument टाइप नहीं है?`,
+    options: [
+      "Positional",
+      "Keyword",
+      "Indexed",
+      "Variable-Length"
+    ],
+    answer: "Indexed"
+  },
+    {
+    question: `In a function call, how are positional arguments matched?\nफंक्शन कॉल में positional arguments कैसे मैच होते हैं?`,
+    options: [
+      "By name / नाम से",
+      "By type / टाइप से",
+      "By order of appearance / दिखने के क्रम से",
+      "Randomly / यादृच्छिक रूप से"
+    ],
+    answer: "By order of appearance / दिखने के क्रम से"
+  },
+  {
+    question: `What will be the output of this code?\ndef greet(name, greeting=\"Hello\"):\n    print(f\"{greeting}, {name}!\")\ngreet(\"Alice\")\nइस कोड का आउटपुट क्या होगा?`,
+    options: [
+      "Hello, Alice!",
+      "Alice, Hello!",
+      "greeting, name!",
+      "Error / त्रुटि"
+    ],
+    answer: "Hello, Alice!"
+  },
+  {
+    question: `Choose the correct way to call the function using keyword arguments:\ndef greet(name, greeting):\n    print(f\"{greeting}, {name}!\")\nकिसे सही तरीके से keyword arguments के साथ कॉल करें?`,
+    options: [
+      "greet(\"Hello\", \"John\")",
+      "greet(name=\"John\", greeting=\"Hello\")",
+      "greet(greeting=\"Hello\", name=\"John\")",
+      "Both b and c / दोनों b और c"
+    ],
+    answer: "Both b and c / दोनों b और c"
+  },
+
+  // Default and Variable-Length Arguments
+  {
+    question: `What is the purpose of *args in a function definition?\nफंक्शन डिफिनिशन में *args का क्या मतलब है?`,
+    options: [
+      "Accept keyword arguments / कीवर्ड आर्गुमेंट स्वीकार करना",
+      "Accept default values / डिफॉल्ट वैल्यूज़ लेना",
+      "Accept a variable number of positional arguments / बदलते नंबर के positional arguments लेना",
+      "Accept a single string / एकल स्ट्रिंग लेना"
+    ],
+    answer: "Accept a variable number of positional arguments / बदलते नंबर के positional arguments लेना"
+  },
+  {
+    question: `What is the purpose of **kwargs in a function?\nफंक्शन में **kwargs का उद्देश्य क्या है?`,
+    options: [
+      "Accept multiple string arguments / कई स्ट्रिंग आर्गुमेंट लेना",
+      "Accept variable number of keyword arguments / बदलते नंबर के कीवर्ड आर्गुमेंट लेना",
+      "Accept all integers / सभी integer लेना",
+      "Accept None as input / None लेना"
+    ],
+    answer: "Accept variable number of keyword arguments / बदलते नंबर के कीवर्ड आर्गुमेंट लेना"
+  },
+
+  // Return Values
+  {
+    question: `Which keyword is used to return a value from a function in Python?\nPython में फंक्शन से वैल्यू वापस करने के लिए कौन-सा keyword है?`,
+    options: [
+      "return",
+      "output",
+      "yield",
+      "send"
+    ],
+    answer: "return"
+  },
+  {
+    question: `What will the following code output?\ndef add(x, y):\n    return x + y\nprint(add(3, 5))\nनीचे दिए गए कोड का आउटपुट क्या होगा?`,
+    options: [
+      "8",
+      "35",
+      "x + y",
+      "Error / त्रुटि"
+    ],
+    answer: "8"
+  },
+  {
+    question: `What does a Python function return if there is no return statement?\nअगर फंक्शन में कोई return स्टेटमेंट नहीं है तो वह क्या वापस करता है?`,
+    options: [
+      "0",
+      "Empty string / खाली स्ट्रिंग",
+      "None",
+      "False"
+    ],
+    answer: "None"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

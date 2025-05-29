@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: "PHP का पूरा नाम क्या है?",
+    options: [
+      "Personal Home Page",
+      "Preprocessed Hypertext Page",
+      "Hypertext Preprocessor",
+      "Programming HTML Processor"
+    ],
+    answer: "Hypertext Preprocessor"
+  },
+  {
+    question: "PHP को किसने बनाया था?",
+    options: [
+      "Dennis Ritchie",
+      "James Gosling",
+      "Rasmus Lerdorf",
+      "Guido van Rossum"
+    ],
+    answer: "Rasmus Lerdorf"
+  },
+  {
+    question: "PHP किस प्रकार की स्क्रिप्टिंग भाषा है?",
+    options: [
+      "Client-side",
+      "Server-side",
+      "Both A and B",
+      "None of the above"
+    ],
+    answer: "Server-side"
+  },
+  {
+    question: "PHP का पहला संस्करण किस वर्ष में आया था?",
+    options: [
+      "1991",
+      "1994",
+      "1999",
+      "2000"
+    ],
+    answer: "1994"
+  },
+  {
+    question: "PHP फाइल को चलाने के लिए निम्नलिखित में से कौन सी टैग जोड़ी का उपयोग किया जाता है?",
+    options: [
+      "<php>...</php>",
+      "<!-- php -->",
+      "<?php ... ?>",
+      "< script>...< /script>"
+    ],
+    answer: "<?php ... ?>"
+  },
+  {
+    question: "PHP को चलाने के लिए कौन-कौन से तीन मुख्य कंपोनेंट आवश्यक हैं?",
+    options: [
+      "HTML, CSS, JavaScript",
+      "Apache, MySQL, PHP",
+      "Python, Node.js, MongoDB",
+      "Java, Oracle, Tomcat"
+    ],
+    answer: "Apache, MySQL, PHP"
+  },
+  {
+    question: "Windows ऑपरेटिंग सिस्टम के लिए AMP स्टैक का कौन सा वर्जन उपयुक्त है?",
+    options: [
+      "LAMP",
+      "XAMPP",
+      "WAMP",
+      "MAMP"
+    ],
+    answer: "WAMP"
+  },
+  {
+    question: "XAMPP किसके लिए उपयुक्त है?",
+    options: [
+      "केवल Windows",
+      "केवल Linux",
+      "केवल Mac",
+      "Cross-platform (सभी के लिए)"
+    ],
+    answer: "Cross-platform (सभी के लिए)"
+  },
+  {
+    question: "PHP प्रोग्राम को चलाने के लिए फाइल को किस फोल्डर में सेव किया जाता है?",
+    options: [
+      "C:/xampp/bin",
+      "C:/xampp/mysql",
+      "C:/xampp/htdocs",
+      "C:/xampp/apache"
+    ],
+    answer: "C:/xampp/htdocs"
+  },
+  {
+    question: "PHP वर्जन जांचने के लिए कौन सा फ़ंक्शन प्रयोग किया जाता है?",
+    options: [
+      "version()",
+      "phpinfo()",
+      "get_version()",
+      "phpversion()"
+    ],
+    answer: "phpversion()"
+  },
+  {
+    question: "PHP का सिंटैक्स किस प्रोग्रामिंग भाषा से मिलता-जुलता है?",
+    options: [
+      "Java",
+      "C",
+      "Python",
+      "HTML"
+    ],
+    answer: "C"
+  },
+ {
+    question: "PHP किस प्रकार के ऑपरेटिंग सिस्टम पर काम कर सकता है?",
+    options: [
+      "Windows",
+      "Linux",
+      "MacOS",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "निम्न में से कौन सा डेटाबेस PHP द्वारा समर्थित नहीं है?",
+    options: [
+      "MySQL",
+      "PostgreSQL",
+      "SQLite",
+      "Oracle Forms"
+    ],
+    answer: "Oracle Forms"
+  },
+  {
+    question: "PHP किस प्रकार की कंटेंट जेनरेट कर सकता है?",
+    options: [
+      "Static",
+      "Dynamic",
+      "Text only",
+      "Images only"
+    ],
+    answer: "Dynamic"
+  },
+  {
+    question: "PHP को किन तकनीकों के साथ आसानी से जोड़ा जा सकता है?",
+    options: [
+      "Java",
+      "HTML, CSS, JavaScript",
+      ".NET",
+      "COBOL"
+    ],
+    answer: "HTML, CSS, JavaScript"
+  },
+  {
+    question: "PHP स्क्रिप्ट किस स्थान पर रखी जा सकती है?",
+    options: [
+      "केवल <head> टैग में",
+      "केवल <body> टैग में",
+      "HTML डॉक्युमेंट के किसी भी हिस्से में",
+      "केवल <footer> में"
+    ],
+    answer: "HTML डॉक्युमेंट के किसी भी हिस्से में"
+  },
+  {
+    question: "PHP स्क्रिप्ट शुरू और समाप्त कैसे होती है?",
+    options: [
+      "<php> और </php>",
+      "<script> और < /script>",
+      "<?php और ?>",
+      "<!-- और -->"
+    ],
+    answer: "<?php और ?>"
+  },
+  {
+    question: "PHP में वैरिएबल कैसे डिक्लेयर किया जाता है?",
+    options: [
+      "var x = 5;",
+      "$x = 5;",
+      "int x = 5;",
+      "let x = 5;"
+    ],
+    answer: "$x = 5;"
+  },
+  {
+    question: "PHP में कौन-कौन से डेटा टाइप होते हैं?",
+    options: [
+      "केवल String और Integer",
+      "Integer, Float, Array",
+      "Integer, Float, String, Boolean, Array, Object, NULL, Resource",
+      "केवल Object और Array"
+    ],
+    answer: "Integer, Float, String, Boolean, Array, Object, NULL, Resource"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा वैरिएबल नाम वैध (Valid) है?",
+    options: [
+      "$4name",
+      "$*user",
+      "$_value",
+      "$user name"
+    ],
+    answer: "$_value"
+  },
+  {
+    question: "PHP में कौन-सी स्टेटमेंट \"Hello World!\" प्रिंट करने के लिए सही है?",
+    options: [
+      "echo \"Hello World!\";",
+      "print(\"Hello World!\")",
+      "printf \"Hello World!\"",
+      "cout << \"Hello World!\""
+    ],
+    answer: "echo \"Hello World!\";"
+  },
+ {
+    question: "PHP में वैरिएबल नाम किस रूप में सेंसिटिव होता है?",
+    options: [
+      "कीवर्ड्स की तरह केस इंसेंसिटिव",
+      "केस सेंसिटिव",
+      "केवल लोअरकेस",
+      "केवल अपरकेस"
+    ],
+    answer: "केस सेंसिटिव"
+  },
+  {
+    question: "PHP में constant कैसे बनाई जाती है?",
+    options: [
+      'const("MSG", "Hello");',
+      'define("MSG", "Hello");',
+      '$MSG = constant("Hello");',
+      'constant MSG = "Hello";'
+    ],
+    answer: 'define("MSG", "Hello");'
+  },
+  {
+    question: "निम्न में से कौन-सा एक लॉजिकल ऑपरेटर नहीं है?",
+    options: [
+      "&&",
+      "||",
+      "++",
+      "!"
+    ],
+    answer: "++"
+  },
+  {
+    question: "PHP में float डेटा टाइप का उदाहरण क्या है?",
+    options: [
+      '$x = "10";',
+      '$x = 10.5;',
+      '$x = TRUE;',
+      '$x = [10];'
+    ],
+    answer: '$x = 10.5;'
+  },
+  {
+    question: "किस फंक्शन से किसी वैरिएबल की डेटा टाइप और वैल्यू पता की जाती है?",
+    options: [
+      "gettype()",
+      "type()",
+      "checktype()",
+      "var_dump()"
+    ],
+    answer: "var_dump()"
+  },
+  {
+    question: "PHP में किस ऑपरेटर का प्रयोग string को जोड़ने के लिए किया जाता है?",
+    options: [
+      "+",
+      ".",
+      "*",
+      "&"
+    ],
+    answer: "."
+  },
+  {
+    question: "PHP एक किस प्रकार की भाषा है?",
+    options: [
+      "क्लाइंट-साइड",
+      "मार्कअप",
+      "सर्वर-साइड",
+      "सिस्टम प्रोग्रामिंग"
+    ],
+    answer: "सर्वर-साइड"
+  },
+  {
+    question: "PHP में कौन-सा ऑपरेटर एक्सपोनेंशिएशन (घात) करता है?",
+    options: [
+      "^",
+      "**",
+      "#",
+      "exp()"
+    ],
+    answer: "**"
+  },
+  {
+    question: "PHP में pre-increment ऑपरेटर क्या करता है?",
+    options: [
+      "पहले वैल्यू लौटाता है, फिर बढ़ाता है",
+      "वैल्यू को घटाता है",
+      "पहले वैल्यू बढ़ाता है, फिर लौटाता है",
+      "कुछ नहीं करता"
+    ],
+    answer: "पहले वैल्यू बढ़ाता है, फिर लौटाता है"
+  },
+   {
+    question: "PHP में Array के लिए कौन-सा ऑपरेटर दोनों arrays को मिलाकर एक नया array बनाता है?",
+    options: ["+", "==", "!=", "==="],
+    answer: "+"
+  },
+  {
+    question: "निम्न में से कौन-सा Conditional Assignment Operator है?",
+    options: ["? :", "+=", "==", "=>"],
+    answer: "? :"
+  },
+  {
+    question: "Pagination का उपयोग किस लिए किया जाता है?",
+    options: [
+      "डेटा को एन्क्रिप्ट करने के लिए",
+      "डेटा को पेजों में विभाजित करने के लिए",
+      "डेटा को स्टाइलिश बनाने के लिए",
+      "डेटा को कैश करने के लिए"
+    ],
+    answer: "डेटा को पेजों में विभाजित करने के लिए"
+  },
+  {
+    question: "Bootstrap में popover को सक्रिय करने के लिए कौन-सी attribute का उपयोग होता है?",
+    options: [
+      'data-show="popover"',
+      'data-display="popover"',
+      'data-toggle="popover"',
+      'data-action="popover"'
+    ],
+    answer: 'data-toggle="popover"'
+  },
+  {
+    question: "Progress bar को HTML और CSS में प्रदर्शित करने के लिए कौन-से class का उपयोग किया जाता है?",
+    options: ["progress-bar", "bar-progress", "loading-bar", "bar"],
+    answer: "progress-bar"
+  },
+  {
+    question: "PHP में isset($_GET['page']) का प्रयोग किस लिए किया जाता है?",
+    options: [
+      "यह पेज का टाइटल सेट करता है",
+      "यह चेक करता है कि URL में 'page' पैरामीटर है या नहीं",
+      "यह डेटा को एन्क्रिप्ट करता है",
+      "यह MySQL को कॉल करता है"
+    ],
+    answer: "यह चेक करता है कि URL में 'page' पैरामीटर है या नहीं"
+  },
+  {
+    question: "PHP में $a == $b क्या जांचता है?",
+    options: [
+      "दोनों arrays एक ही reference को point करते हैं",
+      "दोनों arrays का structure समान है",
+      "दोनों arrays का value समान है लेकिन type को नहीं देखता",
+      "दोनों arrays का type और value दोनों समान होने चाहिए"
+    ],
+    answer: "दोनों arrays का value समान है लेकिन type को नहीं देखता"
+  },
+  {
+    question: "!== ऑपरेटर का कार्य क्या है?",
+    options: [
+      "बराबरी की जांच",
+      "बराबरी और टाइप की जांच",
+      "न बराबर और टाइप भी अलग",
+      "केवल टाइप की जांच"
+    ],
+    answer: "न बराबर और टाइप भी अलग"
+  },
+  {
+    question: "PHP में Pagination का मुख्य उद्देश्य क्या है?",
+    options: [
+      "डाटा को एन्क्रिप्ट करना",
+      "डाटा को पेजों में विभाजित करना",
+      "यूजर से इनपुट लेना",
+      "कोड को छोटा करना"
+    ],
+    answer: "डाटा को पेजों में विभाजित करना"
+  },
+  {
+    question: "Bootstrap में Tooltip को सक्रिय करने के लिए किस attribute का उपयोग होता है?",
+    options: [
+      "data-title",
+      "title-toggle",
+      'data-toggle="tooltip"',
+      "tooltip-on"
+    ],
+    answer: 'data-toggle="tooltip"'
+  },
+    {
+    question: "PHP का कौन सा ऑपरेटर दो arrays को compare करने के लिए प्रयोग किया जाता है?",
+    options: ["==", "===", "!=", "ऊपर के सभी"],
+    answer: "ऊपर के सभी"
+  },
+  {
+    question: "Toast क्या है?",
+    options: [
+      "एक डाटा संरचना",
+      "एक प्रकार का बटन",
+      "एक अस्थायी सूचना बॉक्स",
+      "एक PHP फ़ंक्शन"
+    ],
+    answer: "एक अस्थायी सूचना बॉक्स"
+  },
+  {
+    question: "Spinner किसलिए प्रयोग किया जाता है?",
+    options: [
+      "टेक्स्ट इनपुट के लिए",
+      "प्रोग्रामिंग लॉजिक के लिए",
+      "प्रक्रिया की प्रगति दर्शाने के लिए",
+      "फॉर्म सबमिट करने के लिए"
+    ],
+    answer: "प्रक्रिया की प्रगति दर्शाने के लिए"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा PHP Array Operator है?",
+    options: ["+", "==", "===", "सभी"],
+    answer: "सभी"
+  },
+  {
+    question: "PHP में conditional assignment operator का उदाहरण क्या है?",
+    options: ["=", "?:", "++", "--"],
+    answer: "?:"
+  },
+  {
+    question: "Bootstrap में Toast को दिखाने के लिए कौन-सा JS मेथड इस्तेमाल होता है?",
+    options: [".show()", ".toast()", ".tooltip()", ".display()"],
+    answer: ".toast()"
+  },
+  {
+    question: "प्रगति (Progress Bar) दिखाने के लिए Bootstrap में किस CSS क्लास का प्रयोग होता है?",
+    options: [".bar", ".progress", ".loader", ".status"],
+    answer: ".progress"
+  },
+  {
+    question: "HTML में Bootstrap टेबल को स्टाइल देने के लिए किस क्लास का उपयोग होता है?",
+    options: [".bootstrap-table", ".table", ".data-table", ".tabular"],
+    answer: ".table"
+  },
+  {
+    question: "Bootstrap क्या है?",
+    options: [
+      "एक डेटाबेस",
+      "एक फ्रंट-एंड CSS framework",
+      "एक सर्वर साइड भाषा",
+      "एक वेब होस्टिंग सेवा"
+    ],
+    answer: "एक फ्रंट-एंड CSS framework"
+  },
+  {
+    question: "Bootstrap किस कंपनी द्वारा बनाया गया था?",
+    options: ["Google", "Facebook", "Twitter", "Microsoft"],
+    answer: "Twitter"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

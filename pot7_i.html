@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+ {
+    question: "ब्लूम की टैक्सोनॉमी में कितने डोमेन होते हैं?",
+    options: ["2", "3", "4", "5"],
+    answer: "3"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी के काग्निटिव डोमेन में कौन सा स्तर सबसे नीचला होता है?",
+    options: ["विश्लेषण (Analysis)", "याद रखना (Remembering)", "मूल्यांकन (Evaluating)", "आवेदन (Applying)"],
+    answer: "याद रखना (Remembering)"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी में 'समझना' (Understanding) किस स्तर के अंतर्गत आता है?",
+    options: ["काग्निटिव डोमेन", "अफेक्टिव डोमेन", "सायकमोटर डोमेन", "सभी उपर्युक्त"],
+    answer: "काग्निटिव डोमेन"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी के संशोधित संस्करण में 'समझना' शब्द को किस शब्द से बदल दिया गया है?",
+    options: ["अध्ययन (Studying)", "याद रखना (Remembering)", "समझना (Understanding)", "निष्कर्ष (Conclusion)"],
+    answer: "समझना (Understanding)"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी के साइकोमोटर डोमेन में निम्नलिखित में से कौन सा कौशल शामिल है?",
+    options: ["भावनात्मक विकास", "शारीरिक कौशल", "मानसिक कौशल", "सभी उपर्युक्त"],
+    answer: "शारीरिक कौशल"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी का उद्देश्य क्या है?",
+    options: ["छात्रों को सीखने के लिए प्रेरित करना", "विद्यार्थियों की भावनाओं को बढ़ाना", "विद्यार्थियों के ज्ञान को परखना", "सभी उपर्युक्त"],
+    answer: "सभी उपर्युक्त"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी में 'विश्लेषण' (Analysis) किस स्तर के अंतर्गत आता है?",
+    options: ["याद रखना (Remembering)", "समझना (Understanding)", "विश्लेषण (Analysis)", "मूल्यांकन (Evaluating)"],
+    answer: "विश्लेषण (Analysis)"
+  },
+  {
+    question: "'ब्लूम की टैक्सोनॉमी' का कौन सा डोमेन छात्रों के मानसिक कौशल को परखता है?",
+    options: ["काग्निटिव डोमेन", "अफेक्टिव डोमेन", "साइकोमोटर डोमेन", "इनमें से कोई नहीं"],
+    answer: "काग्निटिव डोमेन"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी में 'सिंथेसिस' का क्या अर्थ है?",
+    options: ["नए विचारों को उत्पन्न करना", "सामग्री का विश्लेषण करना", "मूल्यांकन करना", "जानकारी को याद रखना"],
+    answer: "नए विचारों को उत्पन्न करना"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी के संशोधित संस्करण में 'सिंथेसिस' को किस शब्द से बदला गया है?",
+    options: ["सृजन (Creating)", "विश्लेषण (Analysis)", "समझना (Understanding)", "आवेदन (Applying)"],
+    answer: "सृजन (Creating)"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी के काग्निटिव डोमेन में कुल कितने स्तर होते हैं?",
+    options: ["5", "6", "4", "7"],
+    answer: "6"
+  },
+  {
+    question: "'स्मरण' (Remember) किस स्तर के अंतर्गत आता है?",
+    options: ["काग्निटिव डोमेन", "अफेक्टिव डोमेन", "साइकोमोटर डोमेन", "इनमें से कोई नहीं"],
+    answer: "काग्निटिव डोमेन"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी में 'समझना' (Understand) किस स्तर के अंतर्गत आता है?",
+    options: ["निचला स्तर", "उच्च स्तर", "मानसिक स्तर", "सारे डोमेन"],
+    answer: "निचला स्तर"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी के 'मूल्यांकन' (Evaluation) स्तर का मुख्य उद्देश्य क्या है?",
+    options: ["याद रखना", "समस्याओं को हल करना", "विचारों का मूल्यांकन करना", "संबंधों का विश्लेषण करना"],
+    answer: "विचारों का मूल्यांकन करना"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी में 'सृजन' (Creating) स्तर का क्या अर्थ है?",
+    options: ["नया विचार उत्पन्न करना", "जानकारी को दोहराना", "विचारों का विश्लेषण करना", "किसी जानकारी को याद रखना"],
+    answer: "नया विचार उत्पन्न करना"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी में 'गाइडेड प्रतिक्रिया' (Guided Response) किस डोमेन के अंतर्गत आता है?",
+    options: ["काग्निटिव डोमेन", "साइकोमोटर डोमेन", "अफेक्टिव डोमेन", "इनमें से कोई नहीं"],
+    answer: "साइकोमोटर डोमेन"
+  },
+    {
+    question: "'स्वीकृति' (Receiving) किस डोमेन में आता है?",
+    options: ["साइकोमोटर डोमेन", "काग्निटिव डोमेन", "अफेक्टिव डोमेन", "सभी उपर्युक्त"],
+    answer: "अफेक्टिव डोमेन"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी के संशोधित संस्करण में 'सिंथेसिस' को किस शब्द से बदला गया है?",
+    options: ["सृजन (Creating)", "मूल्यांकन (Evaluating)", "विश्लेषण (Analysis)", "समझना (Understanding)"],
+    answer: "सृजन (Creating)"
+  },
+  {
+    question: "ब्लूम की टैक्सोनॉमी के 'मूल्यांकन' (Evaluation) स्तर में निम्नलिखित में से कौन सा कार्य शामिल है?",
+    options: ["निर्णय लेना", "जानकारी की व्याख्या करना", "नई संरचना बनाना", "किसी जानकारी का परीक्षण करना"],
+    answer: "निर्णय लेना"
+  },
+  {
+    question: "एनएसक्यूएफ के अंतर्गत काग्निटिव डोमेन के लिए कौन सा स्तर जिम्मेदारी से संबंधित है?",
+    options: ["प्रक्रिया", "पेशेवर कौशल", "कार्यात्मक कौशल", "जिम्मेदारी"],
+    answer: "जिम्मेदारी"
+  },
+  {
+    question: "परीक्षा का उद्देश्य क्या होता है?",
+    options: [
+      "छात्र की समझ को मापना",
+      "शिक्षक की सफलता को मापना",
+      "छात्रों के ज्ञान का मूल्यांकन करना",
+      "सभी उपर्युक्त"
+    ],
+    answer: "सभी उपर्युक्त"
+  },
+  {
+    question: "परीक्षा की किस विधि को मान्यता प्राप्त परीक्षा निकाय द्वारा आयोजित किया जाता है?",
+    options: [
+      "गैर-मानकीकृत परीक्षा (Formative)",
+      "मानकीकृत परीक्षा (Summative)",
+      "मौखिक परीक्षा (Oral)",
+      "प्रदर्शन परीक्षा (Performance)"
+    ],
+    answer: "मानकीकृत परीक्षा (Summative)"
+  },
+  {
+    question: "निम्नलिखित में से कौन सी परीक्षा विधि का उदाहरण है?",
+    options: [
+      "ओपेन बुक परीक्षा",
+      "मल्टीपल चॉइस प्रश्न",
+      "व्यक्तिगत साक्षात्कार",
+      "व्यक्तिगत प्रैक्टिकल परीक्षण"
+    ],
+    answer: "मल्टीपल चॉइस प्रश्न"
+  },
+  {
+    question: "'नॉलेज रीकॉल' के स्तर पर प्रश्नों के लिए उपयुक्त क्रिया शब्द कौन सा है?",
+    options: ["तुलना करना", "परिभाषित करना", "विश्लेषण करना", "समस्या हल करना"],
+    answer: "परिभाषित करना"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा परीक्षण वस्तुनिष्ठ (objective) परीक्षण का उदाहरण है?",
+    options: [
+      "निबंध आधारित परीक्षा",
+      "बहुविकल्पीय प्रश्न",
+      "साक्षात्कार",
+      "समूह चर्चा"
+    ],
+    answer: "बहुविकल्पीय प्रश्न"
+  },
+  {
+    question: "'कक्षा के भीतर छात्रों का मूल्यांकन' किस प्रकार की परीक्षा है?",
+    options: [
+      "प्रपत्रात्मक परीक्षा",
+      "निर्माणात्मक परीक्षा (Formative)",
+      "अंतिम परीक्षा (Summative)",
+      "प्रदर्शन आधारित परीक्षा"
+    ],
+    answer: "निर्माणात्मक परीक्षा (Formative)"
+  },
+  {
+    question: "किस स्तर पर प्रश्न ज्ञान के उपयोग और लागू करने की क्षमता को मापते हैं?",
+    options: [
+      "समस्या समाधान",
+      "सिद्धांतों और नियमों का प्रयोग",
+      "याददाश्त",
+      "जानकारी का संकलन"
+    ],
+    answer: "सिद्धांतों और नियमों का प्रयोग"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा परीक्षण वस्तुनिष्ठ परीक्षण में से एक है?",
+    options: [
+      "सही या गलत (True/False)",
+      "निबंध प्रश्न",
+      "साक्षात्कार",
+      "रिपोर्ट लेखन"
+    ],
+    answer: "सही या गलत (True/False)"
+  },
+  {
+    question: "'प्रदर्शन परीक्षण' का उद्देश्य क्या होता है?",
+    options: [
+      "छात्रों की सैद्धांतिक जानकारी का मूल्यांकन करना",
+      "छात्रों के व्यावहारिक कौशल का मूल्यांकन करना",
+      "छात्रों की याददाश्त की क्षमता का मूल्यांकन करना",
+      "छात्रों की लिखित क्षमता का मूल्यांकन करना"
+    ],
+    answer: "छात्रों के व्यावहारिक कौशल का मूल्यांकन करना"
+  },
+  {
+    question: "प्रश्नों की जटिलता को कितने स्तरों में बांटा गया है?",
+    options: ["2 स्तर", "3 स्तर", "4 स्तर", "5 स्तर"],
+    answer: "3 स्तर"
+  },
+  {
+    question: "निम्नलिखित में से संक्षिप्त उत्तर प्रकार प्रश्न की सही संरचना क्या है?",
+    options: [
+      "स्टेम / स्थिति, प्रश्न, उदाहरण, दिशा-निर्देश",
+      "स्टेम / स्थिति, दिशा-निर्देश, उत्तर, कुंजी",
+      "स्टेम, उत्तर, व्याख्या, कुंजी",
+      "स्टेम, प्रश्न, उत्तर, व्याख्या"
+    ],
+    answer: "स्टेम / स्थिति, प्रश्न, उदाहरण, दिशा-निर्देश"
+  },
+  {
+    question: "मिलाने वाले उत्तर प्रकार प्रश्न में, प्रिमिसेस को हमेशा किसके साथ नामित किया जाना चाहिए?",
+    options: ["अक्षर", "संख्याएँ", "रोमन अंक", "उपरोक्त में से कोई नहीं"],
+    answer: "संख्याएँ"
+  },
+    {
+    question: "बहुविकल्पी प्रश्नों का प्राथमिक उद्देश्य क्या है?",
+    options: [
+      "स्मृति की याददाश्त का परीक्षण करना",
+      "तथ्यों और सिद्धांतों के आवेदन का परीक्षण करना",
+      "व्यावहारिक कौशल का मापना",
+      "लेखन क्षमता का आकलन करना"
+    ],
+    answer: "तथ्यों और सिद्धांतों के आवेदन का परीक्षण करना"
+  },
+  {
+    question: "संक्षिप्त उत्तर प्रकार प्रश्न की संरचना में कौन सा घटक नहीं होता है?",
+    options: [
+      "स्थिति / स्टेम",
+      "प्रश्न",
+      "उत्तर की लंबाई",
+      "दिशा-निर्देश"
+    ],
+    answer: "उत्तर की लंबाई"
+  },
+  {
+    question: "मिलाने वाले उत्तर प्रकार प्रश्न में, विकल्पों को किस प्रकार से व्यवस्थित किया जाना चाहिए?",
+    options: [
+      "उत्तरों को बड़े से छोटे क्रम में",
+      "उत्तरों को छोटे से बड़े क्रम में",
+      "किसी विशेष क्रम में नहीं",
+      "उत्तरों को अराजक तरीके से व्यवस्थित किया जाता है"
+    ],
+    answer: "किसी विशेष क्रम में नहीं"
+  },
+  {
+    question: "बहुविकल्पी प्रश्न में, \"सही उत्तर\" को क्या कहा जाता है?",
+    options: [
+      "कुंजी",
+      "विकर्ण",
+      "विकल्प",
+      "गलत उत्तर"
+    ],
+    answer: "कुंजी"
+  },
+  {
+    question: "मिलाने वाले उत्तर प्रकार प्रश्न में, प्रिमिसेस और उत्तरों के बीच क्या अंतर है?",
+    options: [
+      "प्रिमिसेस छोटे होते हैं और उत्तर बड़े",
+      "प्रिमिसेस हमेशा संख्याओं के साथ नामित होते हैं, उत्तर अक्षरों के साथ",
+      "प्रिमिसेस और उत्तरों में कोई अंतर नहीं होता",
+      "प्रिमिसेस का आकार उत्तरों से कम होता है"
+    ],
+    answer: "प्रिमिसेस हमेशा संख्याओं के साथ नामित होते हैं, उत्तर अक्षरों के साथ"
+  },
+  {
+    question: "एक अच्छे परीक्षा प्रश्न में निम्नलिखित में से कौन सी विशेषता होनी चाहिए?",
+    options: [
+      "अनिश्चितता",
+      "स्पष्टता",
+      "सटीकता की कमी",
+      "अस्पष्टता"
+    ],
+    answer: "स्पष्टता"
+  },
+  {
+    question: "परीक्षण (Test) का उद्देश्य क्या है?",
+    options: [
+      "छात्रों का मानसिक विश्लेषण करना",
+      "छात्रों के ज्ञान का मूल्यांकन करना",
+      "छात्रों की कार्यक्षमता को कम करना",
+      "छात्रों को नया विषय सिखाना"
+    ],
+    answer: "छात्रों के ज्ञान का मूल्यांकन करना"
+  },
+  {
+    question: "आंतरिक सत्यापन (Internal Validation) का उद्देश्य क्या है?",
+    options: [
+      "यह यह जांचने के लिए किया जाता है कि प्रशिक्षण ने निर्धारित व्यवहारिक उद्देश्यों को पूरा किया है या नहीं",
+      "यह प्रशिक्षण की गुणवत्ता को बढ़ाने के लिए किया जाता है",
+      "यह बाहरी निरीक्षकों द्वारा किया जाता है",
+      "यह केवल परीक्षा के बाद किया जाता है"
+    ],
+    answer: "यह यह जांचने के लिए किया जाता है कि प्रशिक्षण ने निर्धारित व्यवहारिक उद्देश्यों को पूरा किया है या नहीं"
+  },
+  {
+    question: "सारांश मूल्यांकन (Summative Evaluation) किस समय किया जाता है?",
+    options: [
+      "प्रशिक्षण कार्यक्रम के शुरू होने से पहले",
+      "कार्यक्रम के बीच में",
+      "कार्यक्रम के अंत में",
+      "कार्यक्रम की शुरुआत और अंत दोनों में"
+    ],
+    answer: "कार्यक्रम के अंत में"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा पहलू एक अच्छा मूल्यांकन परीक्षण (Good Evaluation Test) का हिस्सा नहीं है?",
+    options: [
+      "सत्यापन (Validation)",
+      "विश्वसनीयता (Reliability)",
+      "अनिश्चितता (Uncertainty)",
+      "उद्देश्य (Objectivity)"
+    ],
+    answer: "अनिश्चितता (Uncertainty)"
+  },
+  {
+    question: "प्रशिक्षण परिणामों का विश्लेषण क्यों महत्वपूर्ण है?",
+    options: [
+      "छात्रों की प्रगति और कार्यक्रम की सफलता का मूल्यांकन करने के लिए",
+      "केवल छात्रों के बारे में जानकारी प्राप्त करने के लिए",
+      "केवल शिक्षकों के प्रदर्शन का मूल्यांकन करने के लिए",
+      "प्रशिक्षण सामग्री को सहेजने के लिए"
+    ],
+    answer: "छात्रों की प्रगति और कार्यक्रम की सफलता का मूल्यांकन करने के लिए"
+  },
+  {
+    question: "किसे 'टेस्ट' कहा जाता है?",
+    options: [
+      "छात्र का ज्ञान मापने के लिए एक उपकरण",
+      "छात्रों के व्यवहार का मूल्यांकन",
+      "पाठ्यक्रम का विकास",
+      "शिक्षा का संचालन"
+    ],
+    answer: "छात्र का ज्ञान मापने के लिए एक उपकरण"
+  },
+  {
+    question: "आकलन (Assessment) का उद्देश्य क्या है?",
+    options: [
+      "छात्रों का निष्कलंक मूल्यांकन करना",
+      "छात्रों की क्षमता और ज्ञान का मापन",
+      "शिक्षकों की कार्य क्षमता का मूल्यांकन",
+      "केवल परिणाम का जाँच करना"
+    ],
+    answer: "छात्रों की क्षमता और ज्ञान का मापन"
+  },
+  {
+    question: "किस प्रकार की मूल्यांकन प्रणाली को 'समीक्षा' (Evaluation) कहा जाता है?",
+    options: [
+      "किसी कार्यक्रम या प्रशिक्षण के परिणामों पर आधारित निर्णय लेना",
+      "केवल छात्रों का परीक्षण करना",
+      "आंतरिक परीक्षणों का आयोजन",
+      "छात्रों का साप्ताहिक परीक्षा"
+    ],
+    answer: "किसी कार्यक्रम या प्रशिक्षण के परिणामों पर आधारित निर्णय लेना"
+  },
+   {
+    question: "Kirkpatrick के चार स्तरीय मूल्यांकन मॉडल में किसे 'आचरण' (Behavior) कहा जाता है?",
+    options: [
+      "प्रशिक्षण के बाद छात्रों के व्यवहार में बदलाव का माप",
+      "प्रशिक्षण के परिणामों का माप",
+      "छात्रों के ज्ञान में वृद्धि का माप",
+      "प्रशिक्षण के प्रति छात्रों की प्रतिक्रिया"
+    ],
+    answer: "प्रशिक्षण के बाद छात्रों के व्यवहार में बदलाव का माप"
+  },
+  {
+    question: "Kirkpatrick मॉडल के अनुसार, किस स्तर पर यह मूल्यांकन किया जाता है कि क्या प्रशिक्षण से व्यापार को लाभ हुआ है?",
+    options: [
+      "प्रतिक्रिया (Reaction)",
+      "सीखना (Learning)",
+      "आचरण (Behavior)",
+      "परिणाम (Results)"
+    ],
+    answer: "परिणाम (Results)"
+  },
+  {
+    question: "समीक्षा और आंतरिक/बाहरी सत्यापन (Validation) के बीच क्या अंतर है?",
+    options: [
+      "समीक्षा केवल छात्रों के लिए है, जबकि सत्यापन प्रशिक्षण कार्यक्रम के लिए है",
+      "आंतरिक सत्यापन को केवल पाठ्यक्रम के निर्माता करते हैं",
+      "बाहरी सत्यापन प्रशिक्षण की गुणवत्ता और प्रभाव का माप करता है",
+      "समीक्षा केवल ज्ञान पर आधारित होती है"
+    ],
+    answer: "बाहरी सत्यापन प्रशिक्षण की गुणवत्ता और प्रभाव का माप करता है"
+  },
+  {
+    question: "Kirkpatrick मॉडल के कौन से स्तर में प्रशिक्षण की गुणवत्ता के बारे में छात्रों से प्रतिक्रिया प्राप्त की जाती है?",
+    options: [
+      "प्रतिक्रिया (Reaction)",
+      "सीखना (Learning)",
+      "आचरण (Behavior)",
+      "परिणाम (Results)"
+    ],
+    answer: "प्रतिक्रिया (Reaction)"
+  }
+  ];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

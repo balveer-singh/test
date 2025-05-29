@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+    {
+    question: "टोकन पासिंग विधि का उपयोग किस नेटवर्क में किया जाता है?",
+    options: ["ईथरनेट", "वायरलेस", "टोकन रिंग", "CSMA/CD"],
+    answer: "टोकन रिंग"
+  },
+  {
+    question: "TDMA (Time Division Multiple Access) में डिवाइसेज़ को क्या प्रदान किया जाता है?",
+    options: ["एक यूनिक कोड", "एक निश्चित समय स्लॉट", "अलग-अलग फ्रीक्वेंसी", "मल्टीपल टोकन"],
+    answer: "एक निश्चित समय स्लॉट"
+  },
+  {
+    question: "IEEE 802.11 मानक किससे संबंधित है?",
+    options: ["ईथरनेट", "वायरलेस लोकल एरिया नेटवर्क (WLAN)", "फाइबर ऑप्टिक्स", "ब्लूटूथ"],
+    answer: "वायरलेस लोकल एरिया नेटवर्क (WLAN)"
+  },
+  {
+    question: "IEEE 802.3 किस नेटवर्क मानक से संबंधित है?",
+    options: ["वायरलेस नेटवर्क", "ब्लूटूथ", "ईथरनेट", "टोकन रिंग"],
+    answer: "ईथरनेट"
+  },
+  {
+    question: "पैकेट लॉस का मुख्य कारण क्या हो सकता है?",
+    options: ["नेटवर्क कंजेशन", "हाई बैंडविड्थ", "लो लेटेंसी", "अधिक रैम"],
+    answer: "नेटवर्क कंजेशन"
+  },
+  {
+    question: "लेटेंसी किसे प्रभावित कर सकती है?",
+    options: [
+      "केवल डाउनलोड स्पीड",
+      "केवल अपलोड स्पीड",
+      "वास्तविक समय संचार जैसे वीडियो कॉलिंग और गेमिंग",
+      "केवल ब्राउज़िंग स्पीड"
+    ],
+    answer: "वास्तविक समय संचार जैसे वीडियो कॉलिंग और गेमिंग"
+  },
+  {
+    question: "नेटवर्क एडॉप्टर (NIC) का प्राथमिक कार्य क्या है?",
+    options: [
+      "डेटा प्रोसेसिंग",
+      "कंप्यूटर को नेटवर्क से जोड़ना",
+      "ऑपरेटिंग सिस्टम को इंस्टॉल करना",
+      "सॉफ़्टवेयर अपग्रेड करना"
+    ],
+    answer: "कंप्यूटर को नेटवर्क से जोड़ना"
+  },
+  {
+    question: "MAC एड्रेस किसका एक अनूठा पहचानकर्ता होता है?",
+    options: ["नेटवर्क एडॉप्टर", "प्रोसेसर", "रैम", "हार्ड ड्राइव"],
+    answer: "नेटवर्क एडॉप्टर"
+  },
+  {
+    question: "वायरलेस नेटवर्क के लिए कौन सा नेटवर्क एडॉप्टर उपयोग किया जाता है?",
+    options: ["ईथरनेट NIC", "फाइबर ऑप्टिक NIC", "वायरलेस NIC", "हब"],
+    answer: "वायरलेस NIC"
+  },
+  {
+    question: "फाइबर ऑप्टिक नेटवर्क एडॉप्टर का मुख्य उपयोग कहाँ किया जाता है?",
+    options: [
+      "होम नेटवर्किंग",
+      "डेटा सेंटर और हाई-स्पीड नेटवर्क",
+      "केवल मोबाइल नेटवर्क में",
+      "टेलीविज़न ब्रॉडकास्टिंग"
+    ],
+    answer: "डेटा सेंटर और हाई-स्पीड नेटवर्क"
+  },
+  {
+    question: "सर्किट स्विचिंग का सबसे अच्छा उदाहरण क्या है?",
+    options: ["इंटरनेट ब्राउज़िंग", "टेलीफोन कॉल", "ईमेल संचार", "वीडियो स्ट्रीमिंग"],
+    answer: "टेलीफोन कॉल"
+  },
+  {
+    question: "सर्किट स्विचिंग में डेटा संचार के कितने चरण होते हैं?",
+    options: ["एक", "दो", "तीन", "चार"],
+    answer: "तीन (Circuit Establishment, Data Transfer, Circuit Teardown)"
+  },
+  {
+    question: "सर्किट स्विचिंग का मुख्य नुकसान क्या है?",
+    options: [
+      "डेटा पैकेट को छोटे भागों में विभाजित करता है",
+      "नेटवर्क संसाधनों की अधिक खपत",
+      "अधिक कुशल बैंडविड्थ उपयोग",
+      "यह पैकेट को स्वतंत्र रूप से अलग-अलग रास्तों से भेजता है"
+    ],
+    answer: "नेटवर्क संसाधनों की अधिक खपत"
+  },
+  {
+    question: "मैसेज स्विचिंग में कौन सा तंत्र उपयोग किया जाता है?",
+    options: ["सीधा कनेक्शन", "स्टोर-एंड-फॉरवर्ड", "पैकेट फ्रेगमेंटेशन", "बैकअप नेटवर्किंग"],
+    answer: "स्टोर-एंड-फॉरवर्ड"
+  },
+  {
+    question: "पैकेट स्विचिंग का सबसे बड़ा लाभ क्या है?",
+    options: [
+      "यह डेटा को छोटे पैकेट में विभाजित करता है और नेटवर्क को कुशल बनाता है",
+      "यह केवल एक ही नेटवर्क से जुड़ सकता है",
+      "इसमें कोई रूटिंग प्रक्रिया नहीं होती",
+      "यह केवल टेलीफोन नेटवर्क में उपयोग किया जाता है"
+    ],
+    answer: "यह डेटा को छोटे पैकेट में विभाजित करता है और नेटवर्क को कुशल बनाता है"
+  },
+  {
+    question: "कौन सा प्रोटोकॉल पैकेट स्विचिंग का उपयोग करता है?",
+    options: ["PSTN", "IP", "ATM", "CSMA/CD"],
+    answer: "IP"
+  },
+  {
+    question: "नेटवर्क में पैकेट स्विचिंग की कौन सी विशेषता इसे अधिक विश्वसनीय बनाती है?",
+    options: [
+      "यह केवल एक ही पथ से डेटा भेजता है",
+      "पैकेट स्वतंत्र रूप से विभिन्न मार्गों से यात्रा कर सकते हैं",
+      "इसमें बैंडविड्थ पहले से ही आरक्षित होती है",
+      "यह केवल टेलीफोन कॉल में उपयोग होता है"
+    ],
+    answer: "पैकेट स्वतंत्र रूप से विभिन्न मार्गों से यात्रा कर सकते हैं"
+  },
+  {
+    question: "मैसेज स्विचिंग की मुख्य विशेषता क्या है?",
+    options: [
+      "पैकेट स्वतंत्र रूप से यात्रा करते हैं",
+      "प्रत्येक मैसेज को पूरा भेजा जाता है और स्टोर किया जाता है",
+      "टेलीफोन नेटवर्क में इसका उपयोग होता है",
+      "यह सबसे तेज़ डेटा ट्रांसमिशन विधि है"
+    ],
+    answer: "प्रत्येक मैसेज को पूरा भेजा जाता है और स्टोर किया जाता है"
+  },  {
+    question: "पैकेट स्विचिंग का उपयोग मुख्य रूप से किस नेटवर्क में किया जाता है?",
+    options: [
+      "पारंपरिक टेलीफोन नेटवर्क",
+      "इंटरनेट और डेटा नेटवर्क",
+      "केवल LAN नेटवर्क",
+      "केवल वायरलेस नेटवर्क"
+    ],
+    answer: "इंटरनेट और डेटा नेटवर्क"
+  },
+  {
+    question: "इंटरनेटवर्किंग का मुख्य उद्देश्य क्या है?",
+    options: [
+      "नेटवर्क डिवाइसेस का निर्माण करना",
+      "विभिन्न नेटवर्क को आपस में जोड़ना और संचार सक्षम करना",
+      "केवल LAN के भीतर डेटा ट्रांसफर करना",
+      "केवल वाई-फाई नेटवर्क को सपोर्ट करना"
+    ],
+    answer: "विभिन्न नेटवर्क को आपस में जोड़ना और संचार सक्षम करना"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा इंटरनेटवर्किंग का एक प्रकार नहीं है?",
+    options: [
+      "इंट्रानेट",
+      "एक्स्ट्रानेट",
+      "इंटरनेट",
+      "VPN"
+    ],
+    answer: "VPN"
+  },
+  {
+    question: "एक्स्ट्रानेट का उपयोग कौन कर सकता है?",
+    options: [
+      "केवल संगठन के कर्मचारी",
+      "संगठन के ग्राहक, आपूर्तिकर्ता और भागीदार",
+      "केवल नेटवर्क एडमिन",
+      "केवल सामान्य इंटरनेट उपयोगकर्ता"
+    ],
+    answer: "संगठन के ग्राहक, आपूर्तिकर्ता और भागीदार"
+  },
+  {
+    question: "इंट्रानेट किसके लिए उपयोग किया जाता है?",
+    options: [
+      "केवल संगठन के भीतर डेटा और संसाधनों को साझा करने के लिए",
+      "केवल इंटरनेट पर वेबसाइट होस्ट करने के लिए",
+      "केवल ऑनलाइन भुगतान के लिए",
+      "केवल सोशल मीडिया ब्राउज़िंग के लिए"
+    ],
+    answer: "केवल संगठन के भीतर डेटा और संसाधनों को साझा करने के लिए"
+  },
+  {
+    question: "नेटवर्क ब्रिज किस पर काम करता है?",
+    options: [
+      "नेटवर्क लेयर",
+      "डेटा लिंक लेयर",
+      "फिजिकल लेयर",
+      "ट्रांसपोर्ट लेयर"
+    ],
+    answer: "डेटा लिंक लेयर"
+  },
+  {
+    question: "ब्रिज किस एड्रेसिंग सिस्टम का उपयोग करता है?",
+    options: [
+      "IP एड्रेस",
+      "MAC एड्रेस",
+      "पोर्ट नंबर",
+      "DNS एड्रेस"
+    ],
+    answer: "MAC एड्रेस"
+  },
+  {
+    question: "Transparent Bridge का मुख्य कार्य क्या होता है?",
+    options: [
+      "डेटा पैकेट्स को MAC एड्रेस द्वारा फ़िल्टर करना",
+      "नेटवर्क को धीमा करना",
+      "केवल वाई-फाई नेटवर्क में कार्य करना",
+      "डेटा पैकेट्स को एन्क्रिप्ट करना"
+    ],
+    answer: "डेटा पैकेट्स को MAC एड्रेस द्वारा फ़िल्टर करना"
+  },
+  {
+    question: "IPv4 और IPv6 में मुख्य अंतर क्या है?",
+    options: [
+      "IPv4 32-बिट का होता है जबकि IPv6 128-बिट का होता है",
+      "IPv4 128-बिट का होता है जबकि IPv6 32-बिट का होता है",
+      "IPv4 और IPv6 समान होते हैं",
+      "IPv6 केवल मोबाइल नेटवर्क के लिए उपयोग किया जाता है"
+    ],
+    answer: "IPv4 32-बिट का होता है जबकि IPv6 128-बिट का होता है"
+  },
+  {
+    question: "IP एड्रेसिंग में कौन-सा संस्करण पुराना और सीमित IP एड्रेस प्रदान करता है?",
+    options: [
+      "IPv6",
+      "IPv4",
+      "DNS",
+      "TCP"
+    ],
+    answer: "IPv4"
+  },
+  {
+    question: "रूटिंग प्रोटोकॉल का मुख्य कार्य क्या है?",
+    options: [
+      "नेटवर्क में फाइल ट्रांसफर करना",
+      "पैकेट को स्रोत से गंतव्य तक पहुँचाने के लिए सबसे अच्छा मार्ग तय करना",
+      "केवल LAN में डाटा स्टोर करना",
+      "नेटवर्क को बंद करना"
+    ],
+    answer: "पैकेट को स्रोत से गंतव्य तक पहुँचाने के लिए सबसे अच्छा मार्ग तय करना"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा रूटिंग प्रोटोकॉल का प्रकार नहीं है?",
+    options: [
+      "RIP",
+      "OSPF",
+      "HTTP",
+      "BGP"
+    ],
+    answer: "HTTP"
+  },
+  {
+    question: "इंटरनेट किस प्रकार का नेटवर्क है?",
+    options: [
+      "प्राइवेट नेटवर्क",
+      "लोकल नेटवर्क",
+      "ग्लोबल नेटवर्क",
+      "केवल वायरलेस नेटवर्क"
+    ],
+    answer: "ग्लोबल नेटवर्क"
+  },
+  {
+    question: "एक्स्ट्रानेट में कौन-सी मुख्य विशेषता होती है?",
+    options: [
+      "यह केवल एक संगठन के भीतर सीमित होता है",
+      "यह सार्वजनिक नेटवर्क होता है",
+      "यह आंतरिक नेटवर्क को कुछ बाहरी उपयोगकर्ताओं तक बढ़ाता है",
+      "यह केवल पब्लिक वेबसाइट्स को होस्ट करता है"
+    ],
+    answer: "यह आंतरिक नेटवर्क को कुछ बाहरी उपयोगकर्ताओं तक बढ़ाता है"
+  },
+  {
+    question: "राउटर किस पर कार्य करता है?",
+    options: [
+      "फिजिकल लेयर",
+      "डेटा लिंक लेयर",
+      "नेटवर्क लेयर",
+      "एप्लिकेशन लेयर"
+    ],
+    answer: "नेटवर्क लेयर"
+  },
+  {
+    question: "नेटवर्क में ब्रिज का उपयोग क्यों किया जाता है?",
+    options: [
+      "नेटवर्क को सेगमेंट करने और ट्रैफिक को नियंत्रित करने के लिए",
+      "नेटवर्क को धीमा करने के लिए",
+      "केवल वायरलेस कनेक्शन में डेटा ट्रांसमिट करने के लिए",
+      "नेटवर्क को बंद करने के लिए"
+    ],
+    answer: "नेटवर्क को सेगमेंट करने और ट्रैफिक को नियंत्रित करने के लिए"
+  },
+  {
+    question: "IPv6 एड्रेसिंग में कितने बिट्स होते हैं?",
+    options: [
+      "32-बिट",
+      "64-बिट",
+      "128-बिट",
+      "256-बिट"
+    ],
+    answer: "128-बिट"
+  },
+  {
+    question: "राउटर किसका उपयोग करके नेटवर्क के बीच डेटा को फॉरवर्ड करता है?",
+    options: [
+      "MAC एड्रेस",
+      "IP एड्रेस",
+      "पोर्ट नंबर",
+      "DNS एड्रेस"
+    ],
+    answer: "IP एड्रेस"
+  },
+  {
+    question: "कौन-सा प्रोटोकॉल इंटरनेट पर संचार के लिए उपयोग किया जाता है?",
+    options: [
+      "FTP",
+      "TCP/IP",
+      "UDP",
+      "SMTP"
+    ],
+    answer: "TCP/IP"
+  }, {
+    question: "किस डिवाइस का उपयोग विभिन्न नेटवर्क सेगमेंट को जोड़ने के लिए किया जाता है?",
+    options: ["हब", "स्विच", "ब्रिज", "रिपीटर"],
+    answer: "ब्रिज"
+  },
+  {
+    question: "ब्रिज का उपयोग मुख्य रूप से किसके लिए किया जाता है?",
+    options: [
+      "नेटवर्क ट्रैफिक को नियंत्रित करने के लिए",
+      "डेटा ट्रांसफर स्पीड बढ़ाने के लिए",
+      "केवल इंटरनेट कनेक्शन शेयर करने के लिए",
+      "सर्वर में डेटा स्टोर करने के लिए"
+    ],
+    answer: "नेटवर्क ट्रैफिक को नियंत्रित करने के लिए"
+  },
+  {
+    question: "UDP किस प्रकार की सेवा प्रदान करता है?",
+    options: [
+      "कनेक्शन ओरिएंटेड सेवा",
+      "कनेक्शनलेस सेवा",
+      "विश्वसनीय (Reliable) सेवा",
+      "सुरक्षित (Secure) सेवा"
+    ],
+    answer: "कनेक्शनलेस सेवा"
+  },
+  {
+    question: "UDP को अस्थिर (Unreliable) प्रोटोकॉल क्यों कहा जाता है?",
+    options: [
+      "यह त्रुटियों (Errors) की पहचान करता है लेकिन उन्हें ठीक नहीं करता",
+      "यह डेटा को ऑर्डर में नहीं रखता",
+      "यह हैंडशेक प्रक्रिया का उपयोग नहीं करता",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "UDP में त्रुटियों की रिपोर्टिंग के लिए कौन सा प्रोटोकॉल उपयोग किया जाता है?",
+    options: ["ARP", "ICMP", "FTP", "SMTP"],
+    answer: "ICMP"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा फ़ील्ड UDP पैकेट में नहीं होता है?",
+    options: [
+      "स्रोत पोर्ट (Source Port)",
+      "गंतव्य पोर्ट (Destination Port)",
+      "Sequence Number",
+      "Checksum"
+    ],
+    answer: "Sequence Number"
+  },
+  {
+    question: "TCP किस प्रकार का प्रोटोकॉल है?",
+    options: [
+      "कनेक्शनलेस",
+      "कनेक्शन ओरिएंटेड",
+      "ब्रॉडकास्टिंग",
+      "मल्टीकास्टिंग"
+    ],
+    answer: "कनेक्शन ओरिएंटेड"
+  },
+  {
+    question: "TCP में त्रुटियों को कैसे ठीक किया जाता है?",
+    options: [
+      "डेटा को दोबारा भेजकर (Retransmission)",
+      "त्रुटियों को अनदेखा करके",
+      "नेटवर्क को पुनः आरंभ करके",
+      "उपरोक्त में से कोई नहीं"
+    ],
+    answer: "डेटा को दोबारा भेजकर (Retransmission)"
+  },
+  {
+    question: "TCP में डेटा को छोटे टुकड़ों में विभाजित किया जाता है, इन्हें क्या कहा जाता है?",
+    options: ["फ्रेम", "पैकेट", "सेगमेंट", "बिट्स"],
+    answer: "सेगमेंट"
+  },
+  {
+    question: "TCP में कौन सा फ़ील्ड सेगमेंट को पुनः क्रम में व्यवस्थित करने के लिए आवश्यक होता है?",
+    options: ["Checksum", "Sequence Number", "Flag", "Source Port"],
+    answer: "Sequence Number"
+  },
+  {
+    question: "Congestion Control का मुख्य उद्देश्य क्या है?",
+    options: [
+      "नेटवर्क में डाटा ट्रांसफर को धीमा करना",
+      "नेटवर्क पर अधिक ट्रैफिक उत्पन्न करना",
+      "नेटवर्क में भीड़भाड़ (Congestion) को कम करना और दक्षता बढ़ाना",
+      "नेटवर्क को बंद कर देना"
+    ],
+    answer: "नेटवर्क में भीड़भाड़ (Congestion) को कम करना और दक्षता बढ़ाना"
+  },
+  {
+    question: "TCP में Congestion Control के लिए कौन-कौन से एल्गोरिदम का उपयोग किया जाता है?",
+    options: [
+      "Slow Start",
+      "Congestion Avoidance",
+      "Fast Recovery",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "QoS (Quality of Service) का मुख्य कार्य क्या होता है?",
+    options: [
+      "सभी ट्रैफिक को समान प्राथमिकता देना",
+      "महत्वपूर्ण ट्रैफिक को प्राथमिकता देना",
+      "नेटवर्क कनेक्शन बंद करना",
+      "सभी पैकेटों को ड्रॉप करना"
+    ],
+    answer: "महत्वपूर्ण ट्रैफिक को प्राथमिकता देना"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

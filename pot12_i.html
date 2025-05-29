@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+    {
+    question: "NSQF का पूर्ण रूप क्या है?",
+    options: [
+      "National Skill Qualification Framework",
+      "National Skills Qualification Framework",
+      "National Scheme for Quality Framework",
+      "National Standard Qualification Forum"
+    ],
+    answer: "National Skills Qualification Framework"
+  },
+  {
+    question: "NSQF मुख्य रूप से किस पर आधारित है?",
+    options: [
+      "सैद्धांतिक ज्ञान पर",
+      "संस्थागत शिक्षा पर",
+      "योग्यता आधारित ढांचे पर",
+      "परीक्षा आधारित प्रणाली पर"
+    ],
+    answer: "योग्यता आधारित ढांचे पर"
+  },
+  {
+    question: "NSQF में कितने स्तर (Levels) होते हैं?",
+    options: ["5", "10", "7", "12"],
+    answer: "10"
+  },
+  {
+    question: "NSQF का उद्देश्य क्या है?",
+    options: [
+      "केवल उच्च शिक्षा को बढ़ावा देना",
+      "व्यावसायिक शिक्षा को समाप्त करना",
+      "योग्यता आधारित शिक्षा प्रणाली को लागू करना",
+      "केवल तकनीकी शिक्षा देना"
+    ],
+    answer: "योग्यता आधारित शिक्षा प्रणाली को लागू करना"
+  },
+  {
+    question: "NSQF के अंतर्गत “Core Skills” का क्या अर्थ है?",
+    options: [
+      "आईटी और रोजगार से जुड़ी मूलभूत कौशल",
+      "केवल रटाई",
+      "केवल सामाजिक व्यवहार",
+      "केवल व्यावसायिक नैतिकता"
+    ],
+    answer: "आईटी और रोजगार से जुड़ी मूलभूत कौशल"
+  },
+  {
+    question: "NSQF के प्रत्येक स्तर को किन पांच क्षेत्रों में परिभाषित किया गया है?",
+    options: [
+      "सैद्धांतिक ज्ञान, व्यावहारिक ज्ञान, कंप्यूटर, संचार, मूल्य",
+      "प्रोसेस, प्रोफेशनल नॉलेज, प्रोफेशनल स्किल, कोर स्किल, रिस्पॉन्सिबिलिटी",
+      "सामान्य अध्ययन, विज्ञान, गणित, रोजगार, मूल्य",
+      "कोई नहीं"
+    ],
+    answer: "प्रोसेस, प्रोफेशनल नॉलेज, प्रोफेशनल स्किल, कोर स्किल, रिस्पॉन्सिबिलिटी"
+  },
+  {
+    question: "NSQF में “Recognition of Prior Learning (RPL)” का क्या उद्देश्य है?",
+    options: [
+      "केवल शिक्षकों की ट्रेनिंग",
+      "अनुभव के आधार पर कौशल को मान्यता देना",
+      "औपचारिक शिक्षा को बढ़ावा देना",
+      "विदेशी शिक्षा प्रणाली अपनाना"
+    ],
+    answer: "अनुभव के आधार पर कौशल को मान्यता देना"
+  },
+  {
+    question: "NSQF की देखरेख कौन सी संस्था करती है?",
+    options: ["CBSE", "NIOS", "National Skill Development Agency (NSDA)", "AICTE"],
+    answer: "National Skill Development Agency (NSDA)"
+  },
+  {
+    question: "NSQF किस वर्ष भारत सरकार द्वारा लागू किया गया था?",
+    options: ["2005", "2009", "2013", "2016"],
+    answer: "2013"
+  },
+  {
+    question: "NSQF में \"Professional Knowledge\" क्या दर्शाता है?",
+    options: [
+      "केवल रचनात्मकता",
+      "नौकरी करने के लिए आवश्यक सैद्धांतिक ज्ञान",
+      "धार्मिक शिक्षा",
+      "संगीत ज्ञान"
+    ],
+    answer: "नौकरी करने के लिए आवश्यक सैद्धांतिक ज्ञान"
+  },
+  {
+    question: "NSQF के स्तर निर्धारण में कौन-कौन से घटक शामिल होते हैं?",
+    options: [
+      "प्रोसेस, कोर स्किल, कंप्यूटर स्किल",
+      "प्रोसेस, प्रोफेशनल ज्ञान, प्रोफेशनल स्किल, कोर स्किल, उत्तरदायित्व",
+      "प्रोसेस, हाइपर लिंक, कोडिंग, भाषाई ज्ञान",
+      "ज्ञान, समझ, भाषा, मूल्यांकन"
+    ],
+    answer: "प्रोसेस, प्रोफेशनल ज्ञान, प्रोफेशनल स्किल, कोर स्किल, उत्तरदायित्व"
+  },
+  {
+    question: "NSQF में ‘लेवल 1’ पर कार्य करने वाला व्यक्ति किस प्रकार के कार्य करता है?",
+    options: [
+      "जटिल गणना वाले कार्य",
+      "स्वतंत्र रूप से निर्णय लेने वाले कार्य",
+      "दोहराव वाले कार्य जिसमें कोई जिम्मेदारी नहीं होती",
+      "अनुसंधान और नवाचार"
+    ],
+    answer: "दोहराव वाले कार्य जिसमें कोई जिम्मेदारी नहीं होती"
+  },
+  {
+    question: "NSQF के किस स्तर पर व्यक्ति को “कुछ अन्य व्यक्तियों के कार्यों की जिम्मेदारी” भी दी जाती है?",
+    options: ["Level 2", "Level 4", "Level 5", "Level 1"],
+    answer: "Level 5"
+  },
+  {
+    question: "‘Qualification Pack (QP)’ क्या है?",
+    options: [
+      "एक प्रश्न पत्र",
+      "एक कंप्यूटर प्रोग्राम",
+      "किसी नौकरी भूमिका से जुड़ा NOS का समूह",
+      "एक परीक्षा परिणाम"
+    ],
+    answer: "किसी नौकरी भूमिका से जुड़ा NOS का समूह"
+  },
+  {
+    question: "NOS (National Occupational Standards) किसके द्वारा विकसित किए जाते हैं?",
+    options: ["विद्यार्थी", "स्कूल टीचर", "SSC (Sector Skill Councils)", "तकनीकी विश्वविद्यालय"],
+    answer: "SSC (Sector Skill Councils)"
+  },
+  {
+    question: "NSQF में \"Core Skill\" का अर्थ क्या है?",
+    options: [
+      "केवल धार्मिक ज्ञान",
+      "भाषा, संचार, गणितीय योग्यता और सामाजिक समझ",
+      "शुद्ध व्यावसायिक तकनीक",
+      "केवल आईटी कौशल"
+    ],
+    answer: "भाषा, संचार, गणितीय योग्यता और सामाजिक समझ"
+  },
+  {
+    question: "NSQF का मुख्य उद्देश्य क्या है?",
+    options: [
+      "पाठ्यक्रम को कठिन बनाना",
+      "रटने पर बल देना",
+      "योग्यता आधारित शिक्षा को बढ़ावा देना",
+      "केवल उच्च शिक्षा को बढ़ावा देना"
+    ],
+    answer: "योग्यता आधारित शिक्षा को बढ़ावा देना"
+  },
+  {
+    question: "“Recognition of Prior Learning (RPL)” का उपयोग क्यों किया जाता है?",
+    options: [
+      "प्रमाणपत्र देने के लिए",
+      "औपचारिक शिक्षा के लिए",
+      "अनुभव आधारित योग्यता को मान्यता देने के लिए",
+      "परीक्षा देने से छूट पाने के लिए"
+    ],
+    answer: "अनुभव आधारित योग्यता को मान्यता देने के लिए"
+  },
+  {
+    question: "NSQF के तहत ITI कोर्सेज़ को कैसे जोड़ा जाता है?",
+    options: [
+      "विश्वविद्यालय से",
+      "विदेशी कोर्स से",
+      "विशिष्ट NSQF स्तर पर नौकरी भूमिका के साथ",
+      "प्राइवेट स्कूल से"
+    ],
+    answer: "विशिष्ट NSQF स्तर पर नौकरी भूमिका के साथ"
+  },
+  {
+    question: "NSQF का उपयोग किस लिए किया जाता है?",
+    options: [
+      "केवल अंक गणना के लिए",
+      "स्कूली शिक्षा को समाप्त करने के लिए",
+      "शिक्षा और प्रशिक्षण में योग्यता आधारित संरचना लागू करने के लिए",
+      "केवल सैद्धांतिक ज्ञान के लिए"
+    ],
+    answer: "शिक्षा और प्रशिक्षण में योग्यता आधारित संरचना लागू करने के लिए"
+  }
+  ];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

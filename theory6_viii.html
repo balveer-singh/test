@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+ {
+    question: `Which AWT container class can have a border and title?\n
+    कौन सा AWT container class border और title रख सकता है?`,
+    options: ["Window", "Frame", "Panel", "Applet"],
+    answer: "Frame"
+  },
+  {
+    question: `Which method is used to add a component to a container in AWT?\n
+    AWT में container में component जोड़ने के लिए कौन सा method use होता है?`,
+    options: ["put()", "add()", "insert()", "attach()"],
+    answer: "add()"
+  },
+  {
+    question: `Which class is used to create a top-level window without border or title?\n
+    बिना border या title के top-level window बनाने के लिए कौन सी class use होती है?`,
+    options: ["Frame", "Dialog", "Window", "Panel"],
+    answer: "Window"
+  },
+  {
+    question: `Which of the following is a lightweight component?\n
+    निम्न में से lightweight component कौन सा है?`,
+    options: ["Button (AWT)", "JButton (Swing)", "Checkbox (AWT)", "Frame (AWT)"],
+    answer: "JButton (Swing)"
+  },
+  {
+    question: `What is the direct superclass of the class Frame?\n
+    Frame class की direct superclass कौन सी है?`,
+    options: ["Component", "Container", "Window", "Panel"],
+    answer: "Window"
+  },
+  {
+    question: `Which AWT container is used to hold and group other components?\n
+    कौन सा AWT container components को group करने के लिए use होता है?`,
+    options: ["Window", "Container", "Panel", "Frame"],
+    answer: "Panel"
+  },
+  {
+    question: `In Java AWT, the 'Choice' component is used for:\n
+    Java AWT में 'Choice' component किस काम के लिए use होता है?`,
+    options: [
+      "Multi-line text input",
+      "Single selection from a dropdown list",
+      "Multiple selection from list",
+      "Checkbox group"
+    ],
+    answer: "Single selection from a dropdown list"
+  },
+  {
+    question: `Which method is used to make a Frame visible?\n
+    Frame को visible बनाने के लिए कौन सा method use होता है?`,
+    options: [
+      "setVisible(true)",
+      "show()",
+      "display()",
+      "open()"
+    ],
+    answer: "setVisible(true)",
+    explanation: "show() भी काम करता है, लेकिन setVisible(true) modern Java में preferred है।"
+  },
+  {
+    question: `Applet class is a subclass of which AWT class?\n
+    Applet class किस AWT class की subclass है?`,
+    options: ["Frame", "Window", "Panel", "Dialog"],
+    answer: "Panel"
+  },
+  {
+    question: `The layout manager that arranges components in a left-to-right flow is called:\n
+    Components को left-to-right flow में arrange करने वाला layout manager कौन सा है?`,
+    options: ["GridLayout", "BorderLayout", "FlowLayout", "CardLayout"],
+    answer: "FlowLayout"
+  },
+  {
+    question: `What is an event in Java AWT?\n
+    Java AWT में event क्या होता है?`,
+    options: [
+      "A method that performs an action",
+      "A change in the state of an object due to user interaction",
+      "A class used to draw graphics",
+      "None of the above"
+    ],
+    answer: "A change in the state of an object due to user interaction"
+  },
+  {
+    question: `Which model does Java use for event handling?\n
+    Java event handling के लिए कौन सा model use करता है?`,
+    options: [
+      "Inheritance Model",
+      "Delegation Event Model",
+      "Observer Pattern",
+      "None of the above"
+    ],
+    answer: "Delegation Event Model"
+  },
+  {
+    question: `In the Delegation Event Model, what is the role of the Listener?\n
+    Delegation Event Model में Listener का क्या role होता है?`,
+    options: [
+      "Generate events",
+      "Handle the events",
+      "Register source objects",
+      "Display GUI components"
+    ],
+    answer: "Handle the events"
+  },
+  {
+    question: `Which interface must be implemented to handle button click events in Java AWT?\n
+    Button click events को handle करने के लिए कौन सा interface implement करना पड़ता है?`,
+    options: [
+      "MouseListener",
+      "WindowListener",
+      "ActionListener",
+      "KeyListener"
+    ],
+    answer: "ActionListener"
+  },
+  {
+    question: `What method is called when an action event occurs on a button?\n
+    Button पर action event होने पर कौन सा method call होता है?`,
+    options: [
+      "buttonClicked()",
+      "actionPerformed()",
+      "handleEvent()",
+      "eventOccurred()"
+    ],
+    answer: "actionPerformed()"
+  },
+  {
+    question: `Which method is used to register a listener with a source object?\n
+    Listener को source object के साथ register करने के लिए कौन सा method use होता है?`,
+    options: [
+      "addListener()",
+      "registerListener()",
+      "addActionListener()",
+      "attachListener()"
+    ],
+    answer: "addActionListener()"
+  },
+  {
+    question: `Which of the following is NOT an example of a foreground event?\n
+    निम्न में से कौन foreground event नहीं है?`,
+    options: [
+      "Button click",
+      "Mouse movement",
+      "Timer expiration",
+      "Keyboard typing"
+    ],
+    answer: "Timer expiration"
+  },
+  {
+    question: `What does the method getActionCommand() return in event handling?\n
+    Event handling में getActionCommand() method क्या return करता है?`,
+    options: [
+      "The source object of the event",
+      "The string command associated with the event source",
+      "The type of the event",
+      "The timestamp of the event"
+    ],
+    answer: "The string command associated with the event source"
+  },
+  {
+    question: `What is a callback method in event handling?\n
+    Event handling में callback method क्या होती है?`,
+    options: [
+      "A method that initiates an event",
+      "A method provided by API that is invoked in response to an event",
+      "A method used to register listeners",
+      "None of the above"
+    ],
+    answer: "A method provided by API that is invoked in response to an event"
+  },
+  {
+    question: `Which of the following classes is a source of events in Java AWT?\n
+    निम्न में से कौन सी class Java AWT में event का source होती है?`,
+    options: ["Button", "Label", "Panel", "Frame"],
+    answer: "Button"
+  },
+  {
+    question: `Which class in Java is the superclass of all AWT events?\n
+    Java में सभी AWT events की superclass कौन सी class है?`,
+    options: ["EventObject", "AWTEvent", "ActionEvent", "InputEvent"],
+    answer: "AWTEvent"
+  },
+  {
+    question: `The EventObject class belongs to which package?\n
+    EventObject class किस package में आती है?`,
+    options: ["java.awt.event", "java.util", "java.awt", "java.lang"],
+    answer: "java.util"
+  },
+  {
+    question: `What is the purpose of the source field in the EventObject class?\n
+    EventObject class के source field का उद्देश्य क्या है?`,
+    options: [
+      "To store the listener of the event",
+      "To store the object on which the event initially occurred",
+      "To store the type of event",
+      "To store the event timestamp"
+    ],
+    answer: "To store the object on which the event initially occurred"
+  },
+  {
+    question: `Which of the following events is triggered by pressing a key?\n
+    नीचे दिए गए में से कौन सा event key press करने पर triggered होता है?`,
+    options: ["MouseEvent", "KeyEvent", "ActionEvent", "InputEvent"],
+    answer: "KeyEvent"
+  },
+  {
+    question: `Which event class is generated when a mouse button is clicked on a component?\n
+    Mouse button click होने पर कौन सा event class generate होता है?`,
+    options: ["KeyEvent", "ActionEvent", "MouseEvent", "InputEvent"],
+    answer: "MouseEvent"
+  },
+  {
+    question: `Which event class is generated when a button in a GUI is clicked?\n
+    GUI में button click होने पर कौन सा event class generate होता है?`,
+    options: ["MouseEvent", "ActionEvent", "InputEvent", "WindowEvent"],
+    answer: "ActionEvent"
+  },
+  {
+    question: `Which class provides the method getSource() to get the source of the event?\n
+    Event का source प्राप्त करने के लिए getSource() method कौन सी class देती है?`,
+    options: ["AWTEvent", "EventObject", "ActionEvent", "Listener"],
+    answer: "EventObject"
+  },
+  {
+    question: `Which class is a direct subclass of java.lang.Object and implements Serializable interface for event handling?\n
+    कौन सी class java.lang.Object की direct subclass है और Serializable interface implement करती है?`,
+    options: ["EventListener", "EventObject", "AWTEvent", "ActionEvent"],
+    answer: "EventObject"
+  },
+  {
+    question: `In Java AWT, which of the following is NOT an event class?\n
+    Java AWT में नीचे दिए गए में से कौन event class नहीं है?`,
+    options: ["ActionEvent", "MouseEvent", "WindowEvent", "ContainerEvent", "None of the above"],
+    answer: "None of the above"
+  },
+  {
+    question: `The delegation event model in Java requires that:\n
+    Java का delegation event model क्या require करता है?`,
+    options: [
+      "The event source registers with the listener",
+      "The listener registers with the event source",
+      "The event source and listener communicate directly without registration",
+      "None of the above"
+    ],
+    answer: "The listener registers with the event source"
+  },
+  {
+    question: `Which interface acts as a marker interface for all event listener interfaces in Java?\n
+    Java में सभी event listener interfaces के लिए marker interface कौन सा है?`,
+    options: ["EventObject", "EventListener", "ActionListener", "MouseListener"],
+    answer: "EventListener"
+  },
+  {
+    question: `The EventListener interface is defined in which package?\n
+    EventListener interface किस package में defined है?`,
+    options: ["java.awt.event", "java.awt", "java.util", "java.lang"],
+    answer: "java.util"
+  },
+  {
+    question: `Which event listener interface is used to receive action events like button clicks?\n
+    Button click जैसे action events receive करने के लिए कौन सा listener interface use होता है?`,
+    options: ["MouseListener", "KeyListener", "ActionListener", "WindowListener"],
+    answer: "ActionListener"
+  },
+  {
+    question: `Which listener interface is responsible for receiving key events?\n
+    Key events receive करने के लिए कौन सा listener interface होता है?`,
+    options: ["ItemListener", "KeyListener", "TextListener", "ComponentListener"],
+    answer: "KeyListener"
+  },
+  {
+    question: `Which event listener interface is used to listen for changes in components like resizing or moving?\n
+    Component के resizing या moving जैसे बदलावों को सुनने के लिए कौन सा listener interface होता है?`,
+    options: ["ComponentListener", "WindowListener", "ActionListener", "MouseListener"],
+    answer: "ComponentListener"
+  },
+  {
+    question: `Which listener interface listens for mouse events such as clicks, enters, or exits?\n
+    Mouse events जैसे clicks, enters या exits को सुनने वाला listener interface कौन सा है?`,
+    options: ["MouseListener", "KeyListener", "ItemListener", "TextListener"],
+    answer: "MouseListener"
+  },
+  {
+    question: `Which interface is used to listen for item selection or deselection events (e.g., CheckBoxes or Choice)?\n
+    Item selection या deselection events (जैसे CheckBoxes या Choice) को सुनने के लिए कौन सा interface use होता है?`,
+    options: ["ItemListener", "ActionListener", "ComponentListener", "WindowListener"],
+    answer: "ItemListener"
+  },
+  {
+    question: `TextListener interface listens to changes in which component?\n
+    TextListener interface किस component के बदलावों को सुनता है?`,
+    options: ["Text components (TextField, TextArea)", "Window components", "Mouse components", "Keyboard components"],
+    answer: "Text components (TextField, TextArea)"
+  },
+  {
+    question: `WindowListener is used to handle events related to:\n
+    WindowListener किस तरह के events को handle करता है?`,
+    options: ["Window opening, closing, minimizing, etc.", "Button clicks", "Mouse clicks", "Keyboard input"],
+    answer: "Window opening, closing, minimizing, etc."
+  },
+  {
+    question: `In Java event handling, every listener method accepts an object which is a subclass of:\n
+    Java event handling में हर listener method किस class का subclass object accept करता है?`,
+    options: ["EventListener", "EventObject", "AWTEvent", "ActionEvent"],
+    answer: "EventObject"
+  },
+  {
+    question: `What is the main purpose of a Layout Manager in AWT?\n
+    AWT में Layout Manager का मुख्य उद्देश्य क्या है?`,
+    options: [
+      "To handle events",
+      "To arrange components within a container automatically",
+      "To create components",
+      "To draw graphics"
+    ],
+    answer: "To arrange components within a container automatically"
+  },
+   {
+    question: `If no layout manager is specified for a container, what happens?\n
+    यदि किसी container के लिए layout manager specify नहीं किया जाता है, तो क्या होता है?`,
+    options: [
+      "Components are not displayed",
+      "Components are arranged randomly",
+      "Default layout manager arranges the components",
+      "Application throws an error"
+    ],
+    answer: "Default layout manager arranges the components"
+  },
+  {
+    question: `Which interface must be implemented by all layout manager classes?\n
+    सभी layout manager classes को कौन सा interface implement करना चाहिए?`,
+    options: ["LayoutManager", "LayoutManager2", "EventListener", "Container"],
+    answer: "LayoutManager"
+  },
+  {
+    question: `Which AWT layout manager arranges components in five regions: north, south, east, west, and center?\n
+    कौन सा AWT layout manager components को पांच regions (north, south, east, west, center) में arrange करता है?`,
+    options: ["FlowLayout", "GridLayout", "BorderLayout", "CardLayout"],
+    answer: "BorderLayout"
+  },
+  {
+    question: `Which layout manager treats each component as a card, where only one card is visible at a time?\n
+    कौन सा layout manager components को card की तरह treat करता है, जिसमें एक बार में केवल एक card visible होता है?`,
+    options: ["GridLayout", "CardLayout", "FlowLayout", "GridBagLayout"],
+    answer: "CardLayout"
+  },
+  {
+    question: `Which layout manager is the default layout for containers like Panel?\n
+    Panel जैसे containers के लिए default layout manager कौन सा है?`,
+    options: ["FlowLayout", "BorderLayout", "GridLayout", "GridBagLayout"],
+    answer: "FlowLayout"
+  },
+  {
+    question: `Which layout manager arranges components in a rectangular grid with equal-sized cells?\n
+    कौन सा layout manager components को बराबर size वाले rectangular grid में arrange करता है?`,
+    options: ["BorderLayout", "GridLayout", "FlowLayout", "CardLayout"],
+    answer: "GridLayout"
+  },
+  {
+    question: `Which is the most flexible layout manager that allows components to be aligned vertically, horizontally or along their baseline without needing components to be the same size?\n
+    कौन सा layout manager सबसे flexible है, जो components को vertical, horizontal या baseline के अनुसार align कर सकता है बिना components का size एक जैसा होने की आवश्यकता के?`,
+    options: ["GridBagLayout", "CardLayout", "BorderLayout", "FlowLayout"],
+    answer: "GridBagLayout"
+  },
+  {
+    question: `LayoutManager2 interface is a sub-interface of which interface?\n
+    LayoutManager2 interface किस interface का sub-interface है?`,
+    options: ["LayoutManager", "EventListener", "Container", "Component"],
+    answer: "LayoutManager"
+  },
+  {
+    question: `Why is manual layout of components often difficult in Java GUI applications?\n
+    Java GUI applications में components का manual layout करना अक्सर कठिन क्यों होता है?`,
+    options: [
+      "Components cannot be moved manually",
+      "It is tedious and the width/height of components may be unknown",
+      "Java does not support manual layout",
+      "Layout managers always override manual layout"
+    ],
+    answer: "It is tedious and the width/height of components may be unknown"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

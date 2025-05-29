@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+    {
+    question: "पाठ योजना क्या है?",
+    options: [
+      "a) शिक्षण के लिए एक दिशा-निर्देश",
+      "b) परीक्षा की तैयारी के लिए नोट्स",
+      "c) केवल छात्रों के लिए एक मार्गदर्शक",
+      "d) स्कूल के प्रशासन का एक हिस्सा"
+    ],
+    answer: "a) शिक्षण के लिए एक दिशा-निर्देश"
+  },
+  {
+    question: "पाठ योजना बनाने की क्या आवश्यकता है?",
+    options: [
+      "a) शिक्षक को कक्षा में प्रभावी रूप से पढ़ाने में मदद करना",
+      "b) छात्रों को स्वतंत्र रूप से अध्ययन करने देना",
+      "c) केवल परीक्षा के समय उपयोग करने के लिए",
+      "d) स्कूल के नियमों का पालन करने के लिए"
+    ],
+    answer: "a) शिक्षक को कक्षा में प्रभावी रूप से पढ़ाने में मदद करना"
+  },
+  {
+    question: "एक अच्छी पाठ योजना का सबसे महत्वपूर्ण तत्व क्या है?",
+    options: [
+      "a) पाठ्य सामग्री की सूची",
+      "b) शिक्षण उद्देश्यों की स्पष्टता",
+      "c) केवल शिक्षण सहायक सामग्री का उपयोग",
+      "d) कक्षा की सजावट"
+    ],
+    answer: "b) शिक्षण उद्देश्यों की स्पष्टता"
+  },
+  {
+    question: "शिक्षण सहायक सामग्री (Teaching Aids) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "a) छात्रों के ध्यान को बनाए रखना और अवधारणाओं को स्पष्ट करना",
+      "b) शिक्षकों के लिए पढ़ाने को कठिन बनाना",
+      "c) केवल परीक्षा के लिए तैयारी करना",
+      "d) कक्षा में समय व्यतीत करना"
+    ],
+    answer: "a) छात्रों के ध्यान को बनाए रखना और अवधारणाओं को स्पष्ट करना"
+  },
+  {
+    question: "पाठ योजना से किसे सबसे अधिक लाभ होता है?",
+    options: [
+      "a) केवल शिक्षक को",
+      "b) केवल छात्र को",
+      "c) शिक्षक और छात्र दोनों को",
+      "d) केवल विद्यालय प्रशासन को"
+    ],
+    answer: "c) शिक्षक और छात्र दोनों को"
+  },
+  {
+    question: "चार-चरणीय विधि किसके द्वारा विकसित की गई थी?",
+    options: [
+      "a) जॉन डेवी",
+      "b) हर्बर्ट स्पेंसर",
+      "c) जर्मन शिक्षाविद हर्बर्ट",
+      "d) बेंजामिन ब्लूम"
+    ],
+    answer: "c) जर्मन शिक्षाविद हर्बर्ट"
+  },
+  {
+    question: "चार-चरणीय विधि का पहला चरण कौन-सा है?",
+    options: [
+      "a) प्रस्तुति (Presentation)",
+      "b) आवेदन (Application)",
+      "c) परीक्षण (Test)",
+      "d) तैयारी (Preparation)"
+    ],
+    answer: "d) तैयारी (Preparation)"
+  },
+  {
+    question: "प्रस्तुति (Presentation) चरण का उद्देश्य क्या है?",
+    options: [
+      "a) कक्षा की सफाई करना",
+      "b) छात्रों को विषय को समझाने के लिए व्याख्यान देना और दृश्य सामग्री का उपयोग करना",
+      "c) छात्रों को स्वतंत्र रूप से पढ़ने के लिए कहना",
+      "d) केवल प्रश्न पूछना"
+    ],
+    answer: "b) छात्रों को विषय को समझाने के लिए व्याख्यान देना और दृश्य सामग्री का उपयोग करना"
+  },
+  {
+    question: "आवेदन (Application) चरण में क्या किया जाता है?",
+    options: [
+      "a) शिक्षक का व्याख्यान समाप्त होता है",
+      "b) छात्र सीखी गई जानकारी को व्यावहारिक रूप से लागू करते हैं",
+      "c) केवल लिखित परीक्षा ली जाती है",
+      "d) विषय को दोहराया जाता है"
+    ],
+    answer: "b) छात्र सीखी गई जानकारी को व्यावहारिक रूप से लागू करते हैं"
+  },
+  {
+    question: "चार-चरणीय विधि में अंतिम चरण क्या होता है?",
+    options: [
+      "a) प्रस्तुति",
+      "b) आवेदन",
+      "c) परीक्षण (Test/Evaluation)",
+      "d) तैयारी"
+    ],
+    answer: "c) परीक्षण (Test/Evaluation)"
+  },
+  {
+    question: "पाठ योजना में शीर्षक का क्या उद्देश्य होता है?",
+    options: [
+      "a) पाठ को आकर्षक बनाना",
+      "b) पाठ के मुख्य विचार को स्पष्ट रूप से दर्शाना",
+      "c) उद्देश्यों की संख्या बढ़ाना",
+      "d) पाठ को लंबा बनाना"
+    ],
+    answer: "b) पाठ के मुख्य विचार को स्पष्ट रूप से दर्शाना"
+  },
+  {
+    question: "एक पाठ योजना में आदर्श रूप से कितने उद्देश्यों को शामिल किया जाना चाहिए?",
+    options: [
+      "a) 1-2",
+      "b) 3-4",
+      "c) 5-6",
+      "d) 6 से अधिक"
+    ],
+    answer: "b) 3-4"
+  },
+  {
+    question: "पाठ शिक्षण में सहायक सामग्री (Teaching Aids) क्यों महत्वपूर्ण होती है?",
+    options: [
+      "a) वे पाठ को आसान, रोचक और गहन बनाती हैं",
+      "b) वे शिक्षक की आवश्यकता को समाप्त कर देती हैं",
+      "c) वे केवल दृश्य (Visual) शिक्षार्थियों के लिए होती हैं",
+      "d) वे पाठ की अवधि को बढ़ा देती हैं"
+    ],
+    answer: "a) वे पाठ को आसान, रोचक और गहन बनाती हैं"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा पाठ की प्रस्तावना (Introduction) का प्रकार नहीं है?",
+    options: [
+      "a) पुनरावृत्ति आधारित (Revisionary)",
+      "b) उपमा (Analogy)",
+      "c) प्रश्नात्मक (Interrogative)",
+      "d) आश्चर्यचकित करने वाला (Shock)"
+    ],
+    answer: "c) प्रश्नात्मक (Interrogative)"
+  },
+  {
+    question: "पाठ योजना में विषयों को किस क्रम में प्रस्तुत किया जाना चाहिए?",
+    options: [
+      "a) अनियमित (Random)",
+      "b) शिक्षार्थियों की समझ के आधार पर",
+      "c) तार्किक क्रम में (Logical Order)",
+      "d) शिक्षक की पसंद के अनुसार"
+    ],
+    answer: "c) तार्किक क्रम में (Logical Order)"
+  },
+  {
+    question: "पाठ योजना में \"सूचना बिंदु\" (Information Points) का उद्देश्य क्या है?",
+    options: [
+      "a) केवल शिक्षक के लिए उपयोगी होते हैं",
+      "b) विषय को टेलीग्राफिक संदेश की तरह संक्षिप्त रूप में लिखने के लिए",
+      "c) पूरे पाठ का पूर्ण विवरण देने के लिए",
+      "d) छात्रों को नोट्स तैयार करने के लिए"
+    ],
+    answer: "b) विषय को टेलीग्राफिक संदेश की तरह संक्षिप्त रूप में लिखने के लिए"
+  },
+  {
+    question: "पाठ योजना में अनुप्रयोग चरण का क्या महत्व है?",
+    options: [
+      "a) यह शिक्षार्थियों को प्राप्त ज्ञान को लागू करने का अवसर देता है",
+      "b) यह केवल शिक्षक को पाठ दोहराने में मदद करता है",
+      "c) इसका उपयोग केवल परीक्षा में किया जाता है",
+      "d) यह सिर्फ औपचारिकता होती है"
+    ],
+    answer: "a) यह शिक्षार्थियों को प्राप्त ज्ञान को लागू करने का अवसर देता है"
+  },
+  {
+    question: "शिक्षण सहायक सामग्री (Teaching Aids) का प्रदर्शन किस समय किया जाना चाहिए?",
+    options: [
+      "a) कभी भी",
+      "b) पाठ समाप्त होने के बाद",
+      "c) उचित समय पर (Appropriate Time)",
+      "d) पाठ शुरू होने से पहले ही"
+    ],
+    answer: "c) उचित समय पर (Appropriate Time)"
+  },
+  {
+    question: "पाठ योजना के सारांश (Summary) का उद्देश्य क्या है?",
+    options: [
+      "a) पाठ को दोहराना",
+      "b) मुख्य बिंदुओं को पुन: स्पष्ट करना और उन्हें सुदृढ़ करना",
+      "c) शिक्षार्थियों को नया पाठ देने के लिए",
+      "d) पाठ को जल्दी खत्म करने के लिए"
+    ],
+    answer: "b) मुख्य बिंदुओं को पुन: स्पष्ट करना और उन्हें सुदृढ़ करना"
+  },
+  {
+    question: "पाठ योजना में \"परीक्षण (Test)\" चरण का क्या उद्देश्य होता है?",
+    options: [
+      "a) शिक्षार्थियों की समझ का मूल्यांकन करना",
+      "b) केवल परीक्षा के लिए प्रश्न देना",
+      "c) पाठ योजना को लंबा करना",
+      "d) शिक्षार्थियों को नोट्स लिखवाना"
+    ],
+    answer: "a) शिक्षार्थियों की समझ का मूल्यांकन करना"
+  },
+    {
+    question: "एक अच्छे पाठ योजना में \"अगले पाठ\" (Next Lesson) का उल्लेख क्यों किया जाता है?",
+    options: [
+      "a) शिक्षार्थियों को अगले विषय के बारे में जानकारी देने के लिए",
+      "b) पाठ योजना को आकर्षक बनाने के लिए",
+      "c) परीक्षा के लिए छात्रों को तैयार करने के लिए",
+      "d) यह आवश्यक नहीं है"
+    ],
+    answer: "a) शिक्षार्थियों को अगले विषय के बारे में जानकारी देने के लिए"
+  },
+  {
+    question: "अच्छे प्रश्नों का मुख्य उद्देश्य क्या होता है?",
+    options: [
+      "a) छात्रों को भ्रमित करना",
+      "b) कक्षा की उपस्थिति बढ़ाना",
+      "c) संचार और समझ को बढ़ाना",
+      "d) केवल परीक्षा की तैयारी कराना"
+    ],
+    answer: "c) संचार और समझ को बढ़ाना"
+  },
+  {
+    question: "यदि प्रशिक्षक अनुचित तरीके से प्रश्न पूछता है, तो क्या हो सकता है?",
+    options: [
+      "a) छात्रों की रुचि बढ़ सकती है",
+      "b) छात्र विषय में अधिक रुचि लेंगे",
+      "c) छात्र सपने देखने लग सकते हैं या रुचि खो सकते हैं",
+      "d) प्रश्न अधिक प्रभावी हो जाएगा"
+    ],
+    answer: "c) छात्र सपने देखने लग सकते हैं या रुचि खो सकते हैं"
+  },
+  {
+    question: "कक्षा में प्रश्न पूछने का मुख्य उद्देश्य क्या है?",
+    options: [
+      "a) केवल छात्रों की परीक्षा लेना",
+      "b) केवल अनुशासन बनाए रखना",
+      "c) छात्रों की सोचने की क्षमता को विकसित करना",
+      "d) शिक्षकों को अधिक प्रभावशाली बनाना"
+    ],
+    answer: "c) छात्रों की सोचने की क्षमता को विकसित करना"
+  },
+  {
+    question: "प्रश्न पूछने का कौन-सा उद्देश्य सही नहीं है?",
+    options: [
+      "a) छात्रों को सोचने और उत्तर देने का अवसर देना",
+      "b) विषय को और अधिक जटिल बनाना",
+      "c) पिछले ज्ञान का पुन: उपयोग करने में मदद करना",
+      "d) छात्रों के संचार कौशल को विकसित करना"
+    ],
+    answer: "b) विषय को और अधिक जटिल बनाना"
+  },
+  {
+    question: "कौन-सा प्रश्न विषय की प्रस्तावना (Introduction) में पूछा जाता है?",
+    options: [
+      "a) अनुशासनात्मक प्रश्न (Disciplinary Questions)",
+      "b) पुनरावृत्तिपरक प्रश्न (Recapitulative Questions)",
+      "c) प्रारंभिक/परिचयात्मक प्रश्न (Introductory Questions)",
+      "d) मूल्यांकनात्मक प्रश्न (Evaluation Questions)"
+    ],
+    answer: "c) प्रारंभिक/परिचयात्मक प्रश्न (Introductory Questions)"
+  },
+  {
+    question: "कौन-से प्रश्न मुख्य विषय-वस्तु को समझाने के लिए उपयोग किए जाते हैं?",
+    options: [
+      "a) प्रारंभिक प्रश्न (Introductory Questions)",
+      "b) अनुशासनात्मक प्रश्न (Disciplinary Questions)",
+      "c) विकासात्मक प्रश्न (Developing Questions)",
+      "d) पुनरावृत्तिपरक प्रश्न (Recapitulative Questions)"
+    ],
+    answer: "c) विकासात्मक प्रश्न (Developing Questions)"
+  },
+  {
+    question: "छात्रों की समझ का परीक्षण करने के लिए कौन-से प्रश्न पूछे जाते हैं?",
+    options: [
+      "a) अनुशासनात्मक प्रश्न (Disciplinary Questions)",
+      "b) पुनरावृत्तिपरक प्रश्न (Recapitulative Questions)",
+      "c) परिचयात्मक प्रश्न (Introductory Questions)",
+      "d) समीक्षा प्रश्न (Review Questions)"
+    ],
+    answer: "b) पुनरावृत्तिपरक प्रश्न (Recapitulative Questions)"
+  },
+  {
+    question: "एक अच्छे प्रश्न की कौन-सी विशेषता नहीं होनी चाहिए?",
+    options: [
+      "a) स्पष्टता (Clarity)",
+      "b) जटिलता (Complexity)",
+      "c) प्रासंगिकता (Relevance)",
+      "d) सटीकता (Specificity)"
+    ],
+    answer: "b) जटिलता (Complexity)"
+  },
+  {
+    question: "एक अच्छे प्रश्न में स्पष्टता क्यों आवश्यक है?",
+    options: [
+      "a) ताकि छात्र आसानी से उत्तर दे सकें",
+      "b) ताकि प्रश्न कठिन लगे",
+      "c) ताकि प्रश्न लंबे और जटिल बन सकें",
+      "d) ताकि शिक्षक को अधिक प्रशंसा मिले"
+    ],
+    answer: "a) ताकि छात्र आसानी से उत्तर दे सकें"
+  },
+  {
+    question: "कौन-सी विशेषता प्रश्न को प्रभावी बनाती है?",
+    options: [
+      "a) अस्पष्टता (Ambiguity)",
+      "b) चुनौतीपूर्ण (Challenging)",
+      "c) बहुत अधिक व्याख्यात्मक (Too Explanatory)",
+      "d) अत्यधिक सरल (Overly Simple)"
+    ],
+    answer: "b) चुनौतीपूर्ण (Challenging)"
+  },
+  {
+    question: "प्रभावी प्रश्न पूछने के लिए कौन-सा कदम सही नहीं है?",
+    options: [
+      "a) पूरे वर्ग को प्रश्न देना",
+      "b) तुरंत उत्तर माँगना",
+      "c) उत्तर के लिए पर्याप्त समय देना",
+      "d) सही उत्तर को जोर से दोहराना"
+    ],
+    answer: "b) तुरंत उत्तर माँगना"
+  },
+  {
+    question: "शिक्षकों को प्रश्न पूछते समय क्या नहीं करना चाहिए?",
+    options: [
+      "a) एक ही छात्र से बार-बार प्रश्न पूछना",
+      "b) प्रश्न को स्पष्ट और सरल रखना",
+      "c) सभी छात्रों को उत्तर देने का अवसर देना",
+      "d) छात्रों को सोचने का समय देना"
+    ],
+    answer: "a) एक ही छात्र से बार-बार प्रश्न पूछना"
+  },
+  {
+    question: "अच्छे प्रश्न पूछने के लिए किन शब्दों का उपयोग करना चाहिए?",
+    options: [
+      "a) क्या, कब, क्यों, कहाँ, कौन, कैसे (5Ws और 1H)",
+      "b) केवल \"हाँ\" या \"नहीं\" वाले प्रश्न",
+      "c) अत्यधिक जटिल शब्दों का उपयोग करना",
+      "d) सभी प्रश्नों को एक ही शैली में पूछना"
+    ],
+    answer: "a) क्या, कब, क्यों, कहाँ, कौन, कैसे (5Ws और 1H)"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा अनुचित प्रश्न पूछने की तकनीक है?",
+    options: [
+      "a) बार-बार एक ही छात्र से प्रश्न पूछना",
+      "b) पूरी कक्षा को प्रश्न देना",
+      "c) छात्रों को सोचने का समय देना",
+      "d) प्रश्नों को स्पष्ट रखना"
+    ],
+    answer: "a) बार-बार एक ही छात्र से प्रश्न पूछना"
+  },
+  {
+    question: "प्रश्न पूछने की गलत तकनीक कौन-सी है?",
+    options: [
+      "a) प्रश्नों को स्पष्ट और संक्षिप्त रखना",
+      "b) केवल मेधावी छात्रों से प्रश्न पूछना",
+      "c) सभी छात्रों को उत्तर देने का अवसर देना",
+      "d) उत्तर को दोहराना और स्पष्ट करना"
+    ],
+    answer: "b) केवल मेधावी छात्रों से प्रश्न पूछना"
+  },
+  {
+    question: "कौशल (Skill) को किस रूप में परिभाषित किया जाता है?",
+    options: [
+      "a) ज्ञान का संग्रह",
+      "b) कार्य को सबसे कुशल तरीके से करने की आदत",
+      "c) एक परीक्षा पद्धति",
+      "d) केवल मानसिक गतिविधि"
+    ],
+    answer: "b) कार्य को सबसे कुशल तरीके से करने की आदत"
+  },
+  {
+    question: "कौशल में कितने प्रकार की क्रियाएँ और प्रतिक्रियाएँ होती हैं?",
+    options: [
+      "a) दो",
+      "b) तीन",
+      "c) चार",
+      "d) पाँच"
+    ],
+    answer: "c) चार (Perception, Recall of knowledge, Plan, Performance)"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा कौशल का एक प्रकार नहीं है?",
+    options: [
+      "a) बौद्धिक कौशल (Intellectual Skill)",
+      "b) अभिनय कौशल (Acting Skill)",
+      "c) अभिक्रियात्मक कौशल (Reacting Skill)",
+      "d) पारस्परिक कौशल (Interaction Skill)"
+    ],
+    answer: "b) अभिनय कौशल (Acting Skill)"
+  },
+   {
+    question: "बौद्धिक कौशल (Intellectual Skill) किससे संबंधित है?",
+    options: [
+      "शारीरिक गतिविधि",
+      "सोचने की क्षमता",
+      "उपकरणों का संचालन",
+      "केवल संचार कौशल"
+    ],
+    answer: "सोचने की क्षमता"
+  },
+  {
+    question: `"किसी व्यक्ति की चीजों, परिस्थितियों और लोगों के प्रति मूल्यों, भावनाओं और विचारों के अनुसार प्रतिक्रिया करने की क्षमता" किस प्रकार का कौशल है?`,
+    options: [
+      "बौद्धिक कौशल",
+      "शारीरिक कौशल",
+      "अभिक्रियात्मक कौशल (Reacting Skill)",
+      "पारस्परिक कौशल"
+    ],
+    answer: "अभिक्रियात्मक कौशल (Reacting Skill)"
+  },
+  {
+    question: "कौशल के कितने मूल तत्व होते हैं?",
+    options: [
+      "दो",
+      "तीन",
+      "चार",
+      "पाँच"
+    ],
+    answer: "तीन (Accuracy, Speed, Workmanship)"
+  },
+  {
+    question: `"सटीकता" (Accuracy) का कौशल में क्या महत्व है?`,
+    options: [
+      "कार्य को जल्दी करने के लिए",
+      "दिए गए मानक को प्राप्त करने के लिए",
+      "उपकरणों के उपयोग में कमी लाने के लिए",
+      "केवल शारीरिक कौशल को सुधारने के लिए"
+    ],
+    answer: "दिए गए मानक को प्राप्त करने के लिए"
+  },
+  {
+    question: `"स्पीड" (Speed) कौशल में क्यों आवश्यक है?`,
+    options: [
+      "कार्य को लंबे समय तक करने के लिए",
+      "अधिक समय लेने के लिए",
+      "कौशल को न्यूनतम समय में पूरा करने के लिए",
+      "अनावश्यक त्रुटियाँ करने के लिए"
+    ],
+    answer: "कौशल को न्यूनतम समय में पूरा करने के लिए"
+  },
+  {
+    question: `"कार्य कुशलता" (Workmanship) क्या दर्शाता है?`,
+    options: [
+      "उपकरणों के अयोग्य उपयोग को",
+      "कार्य को व्यवस्थित और कुशलतापूर्वक करने की क्षमता",
+      "कार्य को धीमी गति से करने की प्रक्रिया",
+      "केवल मानसिक प्रयास"
+    ],
+    answer: "कार्य को व्यवस्थित और कुशलतापूर्वक करने की क्षमता"
+  },
+  {
+    question: "कौशल की कितनी प्रमुख विशेषताएँ होती हैं?",
+    options: [
+      "दो",
+      "तीन",
+      "चार",
+      "पाँच"
+    ],
+    answer: "तीन (Chain or motor response, Movement coordination, Response pattern)"
+  },
+  {
+    question: `"मोटर प्रतिक्रिया श्रृंखला" (Chain or Motor Response) का क्या अर्थ है?`,
+    options: [
+      "आँख और हाथ का समन्वय",
+      "उत्तेजना से प्रतिक्रिया की प्रक्रिया",
+      "केवल मानसिक गतिविधि",
+      "मस्तिष्क का रचनात्मक उपयोग"
+    ],
+    answer: "उत्तेजना से प्रतिक्रिया की प्रक्रिया"
+  },
+  {
+    question: `"गतिविधि समन्वय" (Movement Coordination) किस पर निर्भर करता है?`,
+    options: [
+      "केवल मांसपेशियों की गतिविधि पर",
+      "केवल आँखों के संचालन पर",
+      "हाथ, आँख, तंत्रिकाओं और मांसपेशियों के समन्वय पर",
+      "केवल मानसिक कौशल पर"
+    ],
+    answer: "हाथ, आँख, तंत्रिकाओं और मांसपेशियों के समन्वय पर"
+  },
+  {
+    question: `"प्रतिक्रिया पैटर्न" (Response Pattern) क्या दर्शाता है?`,
+    options: [
+      "कार्य करने के लिए उत्तेजना की श्रृंखला",
+      "बिना प्रतिक्रिया दिए कार्य करना",
+      "बिना सोचे-समझे कार्य करना",
+      "धीमे और निष्क्रिय प्रतिक्रिया"
+    ],
+    answer: "कार्य करने के लिए उत्तेजना की श्रृंखला"
+  },
+  {
+    question: "कौशल हस्तांतरण की सात चरणीय विधि किसने विकसित की थी?",
+    options: [
+      "W. Douglass Seymour",
+      "Seymour Brothers",
+      "Aristotle",
+      "Edward Thorndike"
+    ],
+    answer: "Seymour Brothers"
+  }
+  ];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

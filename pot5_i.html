@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: "शैक्षिक प्रौद्योगिकी का मुख्य उद्देश्य क्या है?",
+    options: [
+      "शिक्षकों की संख्या बढ़ाना",
+      "शिक्षण प्रक्रिया को प्रभावी बनाना",
+      "केवल उच्च तकनीक का उपयोग करना",
+      "शिक्षार्थियों की संख्या सीमित करना"
+    ],
+    answer: "शिक्षण प्रक्रिया को प्रभावी बनाना"
+  },
+  {
+    question: 'निम्नलिखित में से कौन-सा "निम्न तकनीक" (Low-Tech) शिक्षण उपकरण का उदाहरण है?',
+    options: [
+      "कंप्यूटर आधारित शिक्षण",
+      "रेडियो और टेलीविजन",
+      "ब्लैकबोर्ड और चार्ट",
+      "मल्टीमीडिया पैकेज"
+    ],
+    answer: "ब्लैकबोर्ड और चार्ट"
+  },
+  {
+    question: "शैक्षिक प्रौद्योगिकी के कितने प्रमुख घटक होते हैं?",
+    options: [
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    answer: "3"
+  },
+  {
+    question: "इंटरैक्टिव शिक्षण (Interactive Instruction) का मुख्य लाभ क्या है?",
+    options: [
+      "शिक्षार्थी निष्क्रिय रहते हैं",
+      "शिक्षक और छात्र के बीच द्विपक्षीय संचार होता है",
+      "केवल शिक्षक उत्तर देता है",
+      "इसमें कोई प्रतिक्रिया नहीं होती"
+    ],
+    answer: "शिक्षक और छात्र के बीच द्विपक्षीय संचार होता है"
+  },
+  {
+    question: "मूल्यांकन (Evaluation) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "शिक्षार्थी की प्रगति की जाँच करना",
+      "शिक्षण प्रक्रिया को अनदेखा करना",
+      "शिक्षकों की वेतन वृद्धि करना",
+      "परीक्षा परिणाम छुपाना"
+    ],
+    answer: "शिक्षार्थी की प्रगति की जाँच करना"
+  },
+  {
+    question: 'निम्नलिखित में से कौन-सा "उच्च तकनीक" (High-Tech) शिक्षण उपकरण का उदाहरण है?',
+    options: [
+      "ब्लैकबोर्ड",
+      "रेडियो",
+      "कंप्यूटर आधारित शिक्षण (CAI)",
+      "फ्लैश कार्ड"
+    ],
+    answer: "कंप्यूटर आधारित शिक्षण (CAI)"
+  },
+  {
+    question: '"मल्टीमीडिया शिक्षण" का मुख्य उद्देश्य क्या है?',
+    options: [
+      "केवल ऑडियो सामग्री प्रदान करना",
+      "केवल वीडियो सामग्री प्रदान करना",
+      "विभिन्न मीडिया तत्वों (ऑडियो, वीडियो, टेक्स्ट) का संयोजन करना",
+      "केवल पुस्तकों पर निर्भर रहना"
+    ],
+    answer: "विभिन्न मीडिया तत्वों (ऑडियो, वीडियो, टेक्स्ट) का संयोजन करना"
+  },
+  {
+    question: 'शैक्षिक प्रौद्योगिकी में "गुणवत्ता नियंत्रण" का क्या अर्थ है?',
+    options: [
+      "केवल अच्छे शिक्षकों को नियुक्त करना",
+      "शिक्षण प्रक्रिया की गुणवत्ता बनाए रखना और उसे सुधारना",
+      "छात्रों को कड़ी सजा देना",
+      "परीक्षा में उच्च अंक प्राप्त करना"
+    ],
+    answer: "शिक्षण प्रक्रिया की गुणवत्ता बनाए रखना और उसे सुधारना"
+  },
+  {
+    question: "निर्देशात्मक मीडिया किसके लिए एक आवश्यक तत्व है?",
+    options: [
+      "केवल शिक्षकों के लिए",
+      "केवल छात्रों के लिए",
+      "शिक्षण-प्रशिक्षण प्रक्रिया के लिए",
+      "परीक्षा प्रणाली के लिए"
+    ],
+    answer: "शिक्षण-प्रशिक्षण प्रक्रिया के लिए"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा सीखने का माध्यम नहीं है?",
+    options: [
+      "पाठ्यपुस्तकें",
+      "समाचार पत्र",
+      "सोशल मीडिया",
+      "घरेलू उपकरण"
+    ],
+    answer: "घरेलू उपकरण"
+  },
+  {
+    question: "शिक्षण-अधिगम अनुक्रम के कौन-कौन से चरण होते हैं?",
+    options: [
+      "केवल शुरुआत और समापन",
+      "परिचय, विकास, संगठन, सारांश, मूल्यांकन",
+      "अध्याय की शुरुआत और निष्कर्ष",
+      "केवल मूल्यांकन और सुधार"
+    ],
+    answer: "परिचय, विकास, संगठन, सारांश, मूल्यांकन"
+  },
+  {
+    question: "'निर्देशात्मक प्रौद्योगिकी' का मुख्य उद्देश्य क्या है?",
+    options: [
+      "शिक्षा प्रणाली को जटिल बनाना",
+      "वैज्ञानिक सिद्धांतों का प्रयोग कर शिक्षण को प्रभावी बनाना",
+      "केवल तकनीकी उपकरणों का उपयोग करना",
+      "केवल ऑनलाइन शिक्षण को बढ़ावा देना"
+    ],
+    answer: "वैज्ञानिक सिद्धांतों का प्रयोग कर शिक्षण को प्रभावी बनाना"
+  },
+  {
+    question: "'अनुभवात्मक अधिगम' (Experiential Learning) का पहला चरण क्या है?",
+    options: [
+      "कार्य करना और उसके प्रभावों को देखना",
+      "सामान्यीकरण करना",
+      "नई परिस्थिति में कार्य करना",
+      "विशेष मामले को समझना"
+    ],
+    answer: "कार्य करना और उसके प्रभावों को देखना"
+  },
+   {
+    question: "'निर्देशात्मक रणनीतियाँ' किसका अनुवाद होती हैं?",
+    options: [
+      "शिक्षण के सिद्धांतों का",
+      "शिक्षक की व्यक्तिगत पसंद का",
+      "छात्रों के परीक्षा परिणामों का",
+      "पाठ्यक्रम की जटिलता का"
+    ],
+    answer: "शिक्षण के सिद्धांतों का"
+  },
+  {
+    question: "'खोज रणनीति' (Discovery Strategy) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "शिक्षकों को अधिक अधिकार देना",
+      "छात्रों को स्वयं खोज करके सीखने का अवसर देना",
+      "केवल सैद्धांतिक ज्ञान प्रदान करना",
+      "छात्रों को रटने के लिए प्रेरित करना"
+    ],
+    answer: "छात्रों को स्वयं खोज करके सीखने का अवसर देना"
+  },
+  {
+    question: "'निर्देशात्मक योजनाएँ' क्या होती हैं?",
+    options: [
+      "शिक्षकों की उपस्थिति दर्ज करने की प्रक्रिया",
+      "कक्षा में अपनाई जाने वाली शिक्षण विधियों का संयोजन",
+      "परीक्षा प्रश्नपत्र तैयार करने की तकनीक",
+      "केवल छात्रों के लिए समय सारणी"
+    ],
+    answer: "कक्षा में अपनाई जाने वाली शिक्षण विधियों का संयोजन"
+  },
+  {
+    question: "'निर्देशात्मक विधियाँ' किससे संबंधित हैं?",
+    options: [
+      "शिक्षण प्रक्रिया में उपयोग की जाने वाली विभिन्न तकनीकों से",
+      "केवल व्याख्यान पद्धति से",
+      "केवल डिजिटल शिक्षण से",
+      "केवल प्रैक्टिकल कार्य से"
+    ],
+    answer: "शिक्षण प्रक्रिया में उपयोग की जाने वाली विभिन्न तकनीकों से"
+  },
+  {
+    question: "'मास्टर लर्निंग स्ट्रैटेजी' किसके साथ सबसे अधिक संगत है?",
+    options: [
+      "फ्री डिस्कवरी लर्निंग",
+      "गाइडेड डिस्कवरी लर्निंग",
+      "पूर्ण रूप से याद करने की विधि",
+      "केवल ऑनलाइन शिक्षण प्रणाली"
+    ],
+    answer: "गाइडेड डिस्कवरी लर्निंग"
+  },
+  {
+    question: "संचार का मुख्य उद्देश्य क्या है?",
+    options: [
+      "संदेश भेजना",
+      "संदेश प्राप्त करना",
+      "संदेश को समझाना और प्रतिक्रिया प्राप्त करना",
+      "केवल लिखित रूप में संदेश भेजना"
+    ],
+    answer: "संदेश को समझाना और प्रतिक्रिया प्राप्त करना"
+  },
+  {
+    question: "प्रभावी संचार के लिए आवश्यक तत्व कौन से हैं?",
+    options: [
+      "प्रेषक, संदेश, माध्यम, प्राप्तकर्ता, प्रतिक्रिया",
+      "केवल प्रेषक और प्राप्तकर्ता",
+      "केवल संदेश और माध्यम",
+      "केवल प्रतिक्रिया और प्रेषक"
+    ],
+    answer: "प्रेषक, संदेश, माध्यम, प्राप्तकर्ता, प्रतिक्रिया"
+  },
+  {
+    question: "दो-तरफ़ा संचार (Two-way communication) क्यों महत्वपूर्ण है?",
+    options: [
+      "यह केवल एक व्यक्ति को लाभ देता है",
+      "यह बिना प्रतिक्रिया के काम करता है",
+      "यह संचार को स्पष्ट और प्रभावी बनाता है",
+      "यह केवल औपचारिक स्थितियों में उपयोग किया जाता है"
+    ],
+    answer: "यह संचार को स्पष्ट और प्रभावी बनाता है"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा मौखिक (Verbal) संचार का उदाहरण है?",
+    options: [
+      "समाचार पत्र",
+      "ईमेल",
+      "भाषण",
+      "पोस्टर"
+    ],
+    answer: "भाषण"
+  },
+  {
+    question: "लिखित संचार की एक प्रमुख विशेषता क्या है?",
+    options: [
+      "इसमें त्वरित प्रतिक्रिया प्राप्त होती है",
+      "यह स्थायी रिकॉर्ड प्रदान करता है",
+      "यह हमेशा प्रभावी होता है",
+      "यह केवल अनौपचारिक स्थितियों में उपयोग किया जाता है"
+    ],
+    answer: "यह स्थायी रिकॉर्ड प्रदान करता है"
+  },
+  {
+    question: "अच्छे संचार के लिए कौन सा आवश्यक है?",
+    options: [
+      "अस्पष्ट और जटिल शब्दों का प्रयोग",
+      "सरल, स्पष्ट और सटीक शब्दों का चयन",
+      "अधिक शब्दों का उपयोग",
+      "केवल अनौपचारिक संचार"
+    ],
+    answer: "सरल, स्पष्ट और सटीक शब्दों का चयन"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा संचार का प्रकार नहीं है?",
+    options: [
+      "अंतर-संबंधी संचार (Interpersonal Communication)",
+      "आंतरिक संचार (Intra-communication)",
+      "शारीरिक संचार (Physical Communication)",
+      "जन संचार (Mass Communication)"
+    ],
+    answer: "शारीरिक संचार (Physical Communication)"
+  },
+  {
+    question: "प्रभावी प्रस्तुति (Presentation) के लिए क्या आवश्यक नहीं है?",
+    options: [
+      "विषय का ज्ञान",
+      "प्रभावी बॉडी लैंग्वेज",
+      "अस्पष्ट भाषा का प्रयोग",
+      "श्रोताओं की भागीदारी"
+    ],
+    answer: "अस्पष्ट भाषा का प्रयोग"
+  },
+  {
+    question: "लिखित संचार की एक सीमा क्या है?",
+    options: [
+      "यह कानूनी साक्ष्य प्रदान करता है",
+      "इसमें तत्काल प्रतिक्रिया नहीं मिलती",
+      "यह मौखिक संचार से धीमा होता है",
+      "दोनों B और C"
+    ],
+    answer: "दोनों B और C"
+  },
+  {
+    question: "‘7C’ के अंतर्गत कौन सा कारक नहीं आता है?",
+    options: [
+      "स्पष्टता (Clarity)",
+      "संक्षिप्तता (Conciseness)",
+      "जटिलता (Complexity)",
+      "विनम्रता (Courtesy)"
+    ],
+    answer: "जटिलता (Complexity)"
+  },
+  {
+    question: "ईमेल (Email) के माध्यम से संदेश भेजने की प्रमुख शर्त क्या है?",
+    options: [
+      "प्रेषक और प्राप्तकर्ता को कंप्यूटर होना चाहिए",
+      "दोनों के पास इंटरनेट कनेक्शन होना चाहिए",
+      "केवल प्रेषक को इंटरनेट कनेक्शन चाहिए",
+      "केवल प्राप्तकर्ता को इंटरनेट कनेक्शन चाहिए"
+    ],
+    answer: "दोनों के पास इंटरनेट कनेक्शन होना चाहिए"
+  },
+  {
+    question: "तीन-तरफ़ा संचार (Three-way communication) का उपयोग कहाँ किया जाता है?",
+    options: [
+      "केवल व्यापारिक संचार में",
+      "केवल अनौपचारिक संचार में",
+      "शिक्षण-शिक्षण प्रक्रिया में",
+      "मनोरंजन में"
+    ],
+    answer: "शिक्षण-शिक्षण प्रक्रिया में"
+  },
+  {
+    question: "शिक्षण प्रक्रिया में तीन-तरफ़ा संचार का कौन सा चरण सबसे महत्वपूर्ण है?",
+    options: [
+      "विषय प्रस्तुत करना",
+      "प्रतिक्रिया (Feedback) प्राप्त करना",
+      "केवल पाठ पढ़ाना",
+      "छात्र को मौन रहना"
+    ],
+    answer: "प्रतिक्रिया (Feedback) प्राप्त करना"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा संचार अवरोध (Barrier) का प्रकार नहीं है?",
+    options: [
+      "भौतिक अवरोध (Physical Barrier)",
+      "शब्दार्थ अवरोध (Semantic Barrier)",
+      "मनोवैज्ञानिक अवरोध (Psychological Barrier)",
+      "विद्युत अवरोध (Electrical Barrier)"
+    ],
+    answer: "विद्युत अवरोध (Electrical Barrier)"
+  },
+  {
+    question: "प्रभावी संचार के लिए सबसे महत्वपूर्ण तत्व क्या है?",
+    options: [
+      "केवल बोलने की क्षमता",
+      "केवल लिखने की क्षमता",
+      "स्पष्टता, संक्षिप्तता, विनम्रता",
+      "अधिक जटिल भाषा का उपयोग"
+    ],
+    answer: "स्पष्टता, संक्षिप्तता, विनम्रता"
+  },
+  {
+    question: "संचार के 7C में से कौन सा कारक नहीं आता है?",
+    options: [
+      "स्पष्टता (Clarity)",
+      "संपूर्णता (Completeness)",
+      "जटिलता (Complexity)",
+      "सौजन्यता (Courtesy)"
+    ],
+    answer: "जटिलता (Complexity)"
+  },
+  {
+    question: "एक प्रभावी संचारक (Communicator) के लिए सबसे महत्वपूर्ण कौशल क्या है?",
+    options: [
+      "केवल अच्छा बोलने की कला",
+      "केवल लिखने की कला",
+      "सुनने की क्षमता (Listening Skill)",
+      "बार-बार संदेश दोहराना"
+    ],
+    answer: "सुनने की क्षमता (Listening Skill)"
+  },
+  {
+    question: "संचार प्रक्रिया में श्रोता (Listener) की भूमिका क्या होती है?",
+    options: [
+      "संदेश को सुन्ना और प्रतिक्रिया देना",
+      "केवल संदेश को सुनना",
+      "केवल संदेश को अनदेखा करना",
+      "संदेश को तोड़-मरोड़ कर प्रस्तुत करना"
+    ],
+    answer: "संदेश को सुन्ना और प्रतिक्रिया देना"
+  },
+  {
+    question: "प्रभावी संचार के लिए आवाज़ में क्या आवश्यक है?",
+    options: [
+      "केवल ऊँची आवाज़ में बोलना",
+      "आवाज़ में उतार-चढ़ाव (Voice Modulation)",
+      "हमेशा धीमी आवाज़ में बोलना",
+      "केवल संकेतों पर निर्भर रहना"
+    ],
+    answer: "आवाज़ में उतार-चढ़ाव (Voice Modulation)"
+  },
+  {
+    question: "सुनने (Listening) और सुनाई देने (Hearing) में क्या अंतर है?",
+    options: [
+      "सुनना (Listening) एक सक्रिय प्रक्रिया है, जबकि सुनाई देना (Hearing) एक निष्क्रिय प्रक्रिया है",
+      "दोनों समान हैं",
+      "सुनना (Listening) केवल शिक्षकों के लिए आवश्यक है",
+      "सुनाई देना (Hearing) अधिक महत्वपूर्ण है"
+    ],
+    answer: "सुनना (Listening) एक सक्रिय प्रक्रिया है, जबकि सुनाई देना (Hearing) एक निष्क्रिय प्रक्रिया है"
+  },
+  {
+    question: "सक्रिय श्रवण (Active Listening) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "केवल शब्दों को सुनना",
+      "संदेश को शब्दों के साथ संदर्भ, भावनाओं और चेहरे के भावों के साथ समझना",
+      "केवल उत्तर देने के लिए सुनना",
+      "केवल उच्च स्वर में बोले गए शब्दों पर ध्यान देना"
+    ],
+    answer: "संदेश को शब्दों के साथ संदर्भ, भावनाओं और चेहरे के भावों के साथ समझना"
+  },
+   {
+    question: "ट्रिपल-ए-लिसनिंग (Triple-A-Listening) का सही क्रम क्या है?",
+    options: [
+      "अभिवृत्ति (Attitude), ध्यान (Attention), समायोजन (Adjustment)",
+      "ध्यान (Attention), समायोजन (Adjustment), अभिवृत्ति (Attitude)",
+      "समायोजन (Adjustment), अभिवृत्ति (Attitude), ध्यान (Attention)",
+      "ध्यान (Attention), अभिवृत्ति (Attitude), समायोजन (Adjustment)"
+    ],
+    answer: "अभिवृत्ति (Attitude), ध्यान (Attention), समायोजन (Adjustment)"
+  },
+  {
+    question: "सक्रिय श्रवण में कौन सा कारक महत्वपूर्ण नहीं है?",
+    options: [
+      "वक्ता के प्रति सम्मानजनक रुख",
+      "उत्तर देने के लिए जल्दी-जल्दी सोचना",
+      "अपने ध्यान को केंद्रित रखना",
+      "वक्ता की बात पूरी होने के बाद प्रतिक्रिया देना"
+    ],
+    answer: "उत्तर देने के लिए जल्दी-जल्दी सोचना"
+  },
+  {
+    question: "सक्रिय श्रवण के लिए सबसे प्रभावी तरीका क्या है?",
+    options: [
+      "बोलने वाले की ओर ध्यान देना और उसकी आंखों में देखना",
+      "केवल संदेश को सुनना और तुरंत उत्तर देना",
+      "फोन पर व्यस्त रहना और सुनने का दिखावा करना",
+      "बातचीत के दौरान दूसरों से बात करना"
+    ],
+    answer: "बोलने वाले की ओर ध्यान देना और उसकी आंखों में देखना"
+  },
+  {
+    question: "कौन सा सक्रिय श्रवण में बाधा उत्पन्न कर सकता है?",
+    options: [
+      "बाहरी विकर्षण जैसे मोबाइल फोन और टेलीविजन",
+      "वक्ता के शब्दों को स्पष्ट रूप से सुनना",
+      "वक्ता के विचारों को सारांशित करना",
+      "उचित प्रश्न पूछना"
+    ],
+    answer: "बाहरी विकर्षण जैसे मोबाइल फोन और टेलीविजन"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा श्रवण का प्रकार नहीं है?",
+    options: [
+      "आलोचनात्मक (Critical) श्रवण",
+      "सौंदर्यपरक (Appreciative) श्रवण",
+      "वैज्ञानिक (Scientific) श्रवण",
+      "उपचारात्मक (Therapeutic) श्रवण"
+    ],
+    answer: "वैज्ञानिक (Scientific) श्रवण"
+  },
+  {
+    question: "किस प्रकार का श्रवण केवल आनंद के लिए किया जाता है?",
+    options: [
+      "आलोचनात्मक श्रवण",
+      "सौंदर्यपरक श्रवण",
+      "उपचारात्मक श्रवण",
+      "सूचना संबंधी श्रवण"
+    ],
+    answer: "सौंदर्यपरक श्रवण"
+  },
+  {
+    question: "कौन सा श्रवण व्यक्ति की भावनाओं और समस्याओं को समझने पर केंद्रित होता है?",
+    options: [
+      "आलोचनात्मक श्रवण",
+      "उपचारात्मक श्रवण",
+      "सूचना संबंधी श्रवण",
+      "सौंदर्यपरक श्रवण"
+    ],
+    answer: "उपचारात्मक श्रवण"
+  },
+  {
+    question: "कौन सा कौशल प्रभावी श्रवण के लिए आवश्यक है?",
+    options: [
+      "केवल वक्ता की ओर देखना",
+      "संदेश को सुनने के बाद महत्वपूर्ण बिंदुओं को संक्षेप में प्रस्तुत करना",
+      "हमेशा बातचीत के दौरान जवाब देने के लिए बीच में बोलना",
+      "केवल शब्दों को सुनना, लेकिन उनके पीछे की भावना को नजरअंदाज करना"
+    ],
+    answer: "संदेश को सुनने के बाद महत्वपूर्ण बिंदुओं को संक्षेप में प्रस्तुत करना"
+  },
+  {
+    question: "कौन सा कथन गलत है?",
+    options: [
+      "सक्रिय श्रोता प्रश्न पूछते हैं और संदेश को समझने की कोशिश करते हैं",
+      "श्रवण केवल कानों से होता है, इसमें मानसिक एकाग्रता की कोई आवश्यकता नहीं होती",
+      "सक्रिय श्रोता बोलने वाले की बातों को ध्यान से सुनते हैं और प्रतिक्रिया देते हैं",
+      "सक्रिय श्रवण से व्यक्तिगत और व्यावसायिक संबंध बेहतर बनते हैं"
+    ],
+    answer: "श्रवण केवल कानों से होता है, इसमें मानसिक एकाग्रता की कोई आवश्यकता नहीं होती"
+  },
+  {
+    question: "प्रभावी संचार के लिए सही आवाज़ कैसी होनी चाहिए?",
+    options: [
+      "जोर से चिल्लाना",
+      "स्पष्ट, आत्मविश्वास से भरी और सुचारू रूप से बोले जाने वाली",
+      "धीमी और अस्पष्ट आवाज",
+      "बिना किसी उतार-चढ़ाव के समान स्वर में बोलना"
+    ],
+    answer: "स्पष्ट, आत्मविश्वास से भरी और सुचारू रूप से बोले जाने वाली"
+  },
+  {
+    question: "किस प्रकार के संचार में भावनाओं और हावभावों का सबसे अधिक महत्व होता है?",
+    options: [
+      "मौखिक संचार",
+      "लिखित संचार",
+      "अशाब्दिक संचार",
+      "तकनीकी संचार"
+    ],
+    answer: "अशाब्दिक संचार"
+  }
+  ];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

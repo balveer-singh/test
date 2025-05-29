@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: "ER मॉडल का उपयोग क्यों किया जाता है?",
+    options: [
+      "a) डेटाबेस संरचना को विज़ुअलाइज़ करने के लिए",
+      "b) डेटा को स्टोर करने के लिए",
+      "c) नेटवर्क कनेक्शन को संभालने के लिए",
+      "d) उपयोगकर्ता डेटा को एन्क्रिप्ट करने के लिए"
+    ],
+    answer: "a) डेटाबेस संरचना को विज़ुअलाइज़ करने के लिए"
+  },
+  {
+    question: "नीचे दिए गए में से कौन सा सही मेल नहीं है?",
+    options: [
+      "a) आयत (Rectangle) → एंटिटी",
+      "b) डायमंड (Diamond) → रिलेशनशिप",
+      "c) अंडाकार (Ellipse) → इंडेक्स",
+      "d) डबल आयत (Double Rectangle) → वीक एंटिटी"
+    ],
+    answer: "c) अंडाकार (Ellipse) → इंडेक्स"
+  },
+  {
+    question: "Weak Entity किस पर निर्भर करता है?",
+    options: [
+      "a) स्वयं पर (Itself)",
+      "b) अन्य एंटिटी पर (Another entity)",
+      "c) रिलेशनशिप पर (Relationship)",
+      "d) डेटाबेस स्कीमा पर (Database Schema)"
+    ],
+    answer: "b) अन्य एंटिटी पर (Another entity)"
+  },
+  {
+    question: "ER मॉडल में एक स्ट्रॉन्ग एंटिटी को कैसे दर्शाया जाता है?",
+    options: [
+      "a) डबल आयत (Double Rectangle)",
+      "b) साधारण आयत (Single Rectangle)",
+      "c) डायमंड (Diamond)",
+      "d) अंडाकार (Ellipse)"
+    ],
+    answer: "b) साधारण आयत (Single Rectangle)"
+  },
+  {
+    question: "नीचे दिए गए में से कौन सा एक Key Attribute का उदाहरण है?",
+    options: [
+      "a) नाम (Name)",
+      "b) पता (Address)",
+      "c) रोल नंबर (Roll Number)",
+      "d) फ़ोन नंबर (Phone Number)"
+    ],
+    answer: "c) रोल नंबर (Roll Number)"
+  },
+  {
+    question: "एक मल्टीवैल्यूड एट्रिब्यूट (Multivalued Attribute) को ER मॉडल में कैसे दर्शाया जाता है?",
+    options: [
+      "a) डबल अंडाकार (Double Ellipse)",
+      "b) डैश्ड अंडाकार (Dashed Ellipse)",
+      "c) डायमंड (Diamond)",
+      "d) डबल आयत (Double Rectangle)"
+    ],
+    answer: "a) डबल अंडाकार (Double Ellipse)"
+  },
+  {
+    question: "Composite Attribute क्या होता है?",
+    options: [
+      "a) एक ऐसा एट्रिब्यूट जो अन्य एट्रिब्यूट्स से बना हो",
+      "b) एक ऐसा एट्रिब्यूट जो केवल एक मान (Value) रखता हो",
+      "c) एक ऐसा एट्रिब्यूट जो अन्य एंटिटीज़ को दर्शाता हो",
+      "d) ऐसा एट्रिब्यूट जो केवल Derived हो"
+    ],
+    answer: "a) एक ऐसा एट्रिब्यूट जो अन्य एट्रिब्यूट्स से बना हो"
+  },
+  {
+    question: "One-to-One रिलेशनशिप का एक उदाहरण क्या है?",
+    options: [
+      "a) एक छात्र कई विषय पढ़ सकता है",
+      "b) एक व्यक्ति एक पासपोर्ट रख सकता है",
+      "c) एक शिक्षक कई छात्रों को पढ़ा सकता है",
+      "d) एक पुस्तक कई लाइब्रेरी में हो सकती है"
+    ],
+    answer: "b) एक व्यक्ति एक पासपोर्ट रख सकता है"
+  },
+  {
+    question: "Many-to-Many रिलेशनशिप का उदाहरण क्या है?",
+    options: [
+      "a) एक छात्र केवल एक शिक्षक से पढ़ सकता है",
+      "b) एक कर्मचारी कई प्रोजेक्ट्स पर काम कर सकता है और एक प्रोजेक्ट में कई कर्मचारी हो सकते हैं",
+      "c) एक कंपनी के पास केवल एक शाखा होती है",
+      "d) एक पुस्तक केवल एक लेखक के द्वारा लिखी जाती है"
+    ],
+    answer: "b) एक कर्मचारी कई प्रोजेक्ट्स पर काम कर सकता है और एक प्रोजेक्ट में कई कर्मचारी हो सकते हैं"
+  },
+  {
+    question: "Derived Attribute का सही उदाहरण कौन सा है?",
+    options: [
+      "a) नाम (Name)",
+      "b) जन्मतिथि (Date of Birth)",
+      "c) आयु (Age)",
+      "d) फ़ोन नंबर (Phone Number)"
+    ],
+    answer: "c) आयु (Age)"
+  },
+  {
+    question: "एक स्ट्रॉन्ग एंटिटी और वीक एंटिटी के बीच क्या मुख्य अंतर है?",
+    options: [
+      "a) स्ट्रॉन्ग एंटिटी में कोई Primary Key नहीं होती",
+      "b) वीक एंटिटी अपनी Primary Key को स्वयं डिफाइन करती है",
+      "c) वीक एंटिटी अन्य एंटिटी पर निर्भर होती है और इसकी अपनी कोई Primary Key नहीं होती",
+      "d) स्ट्रॉन्ग एंटिटी हमेशा वीक एंटिटी पर निर्भर होती है"
+    ],
+    answer: "c) वीक एंटिटी अन्य एंटिटी पर निर्भर होती है और इसकी अपनी कोई Primary Key नहीं होती"
+  },
+  {
+    question: "Many-to-One रिलेशनशिप का सही उदाहरण कौन सा है?",
+    options: [
+      "a) एक छात्र कई शिक्षकों से पढ़ सकता है",
+      "b) एक विश्वविद्यालय कई छात्रों को नामांकित कर सकता है",
+      "c) कई छात्र एक ही विश्वविद्यालय में प्रवेश ले सकते हैं",
+      "d) एक वैज्ञानिक कई आविष्कार कर सकता है"
+    ],
+    answer: "c) कई छात्र एक ही विश्वविद्यालय में प्रवेश ले सकते हैं"
+  },
+  {
+    question: "ER मॉडल का मुख्य उद्देश्य क्या है?",
+    options: [
+      "a) डेटाबेस को स्टोर करना",
+      "b) डेटा की दृश्यात्मक (visual) प्रस्तुति देना",
+      "c) डेटा प्रोसेसिंग करना",
+      "d) ऑडियो फाइलों को स्टोर करना"
+    ],
+    answer: "b) डेटा की दृश्यात्मक (visual) प्रस्तुति देना"
+  },
+  {
+    question: "ER मॉडल में Relationship को कैसे दर्शाया जाता है?",
+    options: [
+      "a) अंडाकार (Ellipse)",
+      "b) आयत (Rectangle)",
+      "c) डायमंड (Diamond)",
+      "d) डबल आयत (Double Rectangle)"
+    ],
+    answer: "c) डायमंड (Diamond)"
+  },
+  {
+    question: "डेटाबेस स्कीमा क्या दर्शाता है?",
+    options: [
+      "a) डेटा की फिजिकल स्टोरेज",
+      "b) डेटा का ऑर्गनाइज़ेशन, संरचना और रिलेशनशिप",
+      "c) डेटा का एन्क्रिप्शन",
+      "d) केवल डेटा की सुरक्षा"
+    ],
+    answer: "b) डेटा का ऑर्गनाइज़ेशन, संरचना और रिलेशनशिप"
+  },
+  {
+    question: "Logical Schema क्या दर्शाता है?",
+    options: [
+      "a) डेटा कैसे स्टोर किया जाता है",
+      "b) डेटा को उपयोगकर्ता कैसे देख सकते हैं",
+      "c) टेबल्स, एंटिटी कनेक्शंस, और डेटा इंटीग्रिटी की संरचना",
+      "d) डेटा को नेटवर्क में कैसे भेजा जाए"
+    ],
+    answer: "c) टेबल्स, एंटिटी कनेक्शंस, और डेटा इंटीग्रिटी की संरचना"
+  },
+  {
+    question: "डेटाबेस में फिजिकल स्कीमा क्या दर्शाता है?",
+    options: [
+      "a) डेटा के भौतिक भंडारण की रूपरेखा",
+      "b) उपयोगकर्ता इंटरफेस",
+      "c) डेटा की संरचना",
+      "d) वेब एप्लिकेशन की कोडिंग"
+    ],
+    answer: "a) डेटा के भौतिक भंडारण की रूपरेखा"
+  },
+  {
+    question: "डेटाबेस स्कीमा के कितने प्रकार होते हैं?",
+    options: [
+      "a) 2",
+      "b) 3",
+      "c) 4",
+      "d) 5"
+    ],
+    answer: "b) 3 (Logical Schema, Physical Schema, View Schema)"
+  },
+  {
+    question: "View Schema किससे संबंधित होता है?",
+    options: [
+      "a) उपयोगकर्ताओं द्वारा डेटा को देखने के तरीके से",
+      "b) डेटाबेस के भौतिक स्टोरेज से",
+      "c) डेटाबेस में प्रयुक्त सुरक्षा नीतियों से",
+      "d) डेटा बैकअप प्रक्रिया से"
+    ],
+    answer: "a) उपयोगकर्ताओं द्वारा डेटा को देखने के तरीके से"
+  },
+    {
+    question: "MySQL में 'CREATE SCHEMA' का क्या उपयोग है?",
+    options: [
+      "a) एक नया उपयोगकर्ता बनाने के लिए",
+      "b) एक नई डेटाबेस स्कीमा बनाने के लिए",
+      "c) डेटाबेस बैकअप के लिए",
+      "d) केवल SQL Server में उपयोग किया जाता है"
+    ],
+    answer: "b) एक नई डेटाबेस स्कीमा बनाने के लिए"
+  },
+  {
+    question: "एक डेटाबेस स्कीमा को बनाने के लिए कौन सा SQL स्टेटमेंट उपयोग किया जाता है?",
+    options: [
+      "a) CREATE SCHEMA",
+      "b) CREATE DATABASE",
+      "c) CREATE TABLE",
+      "d) केवल a और b"
+    ],
+    answer: "d) केवल a और b"
+  },
+  {
+    question: "ER मॉडल की एक मुख्य सीमा क्या है?",
+    options: [
+      "a) यह डेटा को स्टोर नहीं कर सकता",
+      "b) इसका कोई मानकीकृत (Standardized) नोटेशन नहीं है",
+      "c) यह डेटाबेस डिज़ाइन को जटिल बनाता है",
+      "d) यह केवल छोटे डेटाबेस के लिए उपयोग किया जाता है"
+    ],
+    answer: "b) इसका कोई मानकीकृत (Standardized) नोटेशन नहीं है"
+  },
+  {
+    question: "डेटाबेस स्कीमा क्या दर्शाता है?",
+    options: [
+      "a) केवल डेटा स्टोरेज",
+      "b) डेटाबेस की संरचना, रिलेशनशिप और डेटा ऑर्गनाइज़ेशन",
+      "c) केवल डेटा बैकअप",
+      "d) नेटवर्क की स्पीड"
+    ],
+    answer: "b) डेटाबेस की संरचना, रिलेशनशिप और डेटा ऑर्गनाइज़ेशन"
+  },
+  {
+    question: "Flat Model डेटाबेस में डेटा कैसे स्टोर किया जाता है?",
+    options: [
+      "a) ग्राफ फॉर्मेट में",
+      "b) टेबल या स्प्रेडशीट जैसी संरचना में",
+      "c) रिलेशनल टेबल्स में",
+      "d) OOPS संरचना में"
+    ],
+    answer: "b) टेबल या स्प्रेडशीट जैसी संरचना में"
+  },
+  {
+    question: "Hierarchical Model में डेटा संरचना कैसी होती है?",
+    options: [
+      "a) ग्राफ",
+      "b) ट्री",
+      "c) टेबल",
+      "d) वेक्टर"
+    ],
+    answer: "b) ट्री"
+  },
+  {
+    question: "Network Model और Hierarchical Model में मुख्य अंतर क्या है?",
+    options: [
+      "a) Network Model केवल एक-से-एक (One-to-One) संबंध को सपोर्ट करता है",
+      "b) Network Model केवल ग्राफिकल डेटा को सपोर्ट करता है",
+      "c) Network Model में Many-to-Many रिलेशनशिप की अनुमति होती है, जबकि Hierarchical Model में केवल One-to-Many रिलेशनशिप होती है",
+      "d) Network Model में डेटा स्टोर नहीं किया जाता"
+    ],
+    answer: "c) Network Model में Many-to-Many रिलेशनशिप की अनुमति होती है, जबकि Hierarchical Model में केवल One-to-Many रिलेशनशिप होती है"
+  },
+  {
+    question: "Relational Model में डेटा कैसे स्टोर किया जाता है?",
+    options: [
+      "a) ग्राफ में",
+      "b) XML में",
+      "c) टेबल और रिलेशन के रूप में",
+      "d) सिर्फ JSON में"
+    ],
+    answer: "c) टेबल और रिलेशन के रूप में"
+  },
+  {
+    question: "Hierarchical Model आमतौर पर किस फॉर्मेट में स्टोर किया जाता है?",
+    options: [
+      "a) XML और JSON",
+      "b) Relational Tables",
+      "c) CSV फॉर्मेट",
+      "d) Excel Sheet"
+    ],
+    answer: "a) XML और JSON"
+  },
+  {
+    question: "Star Schema और Snowflake Schema मुख्यतः किसमें उपयोग किए जाते हैं?",
+    options: [
+      "a) डेटाबेस एडमिनिस्ट्रेशन",
+      "b) डेटा वेयरहाउसिंग",
+      "c) मोबाइल ऐप डेवलपमेंट",
+      "d) वेब डिज़ाइन"
+    ],
+    answer: "b) डेटा वेयरहाउसिंग"
+  },
+  {
+    question: "डेटाबेस नॉर्मलाइजेशन का मुख्य उद्देश्य क्या है?",
+    options: [
+      "a) डेटा रेडंडेंसी को बढ़ाना",
+      "b) डेटा की अखंडता (Integrity) और दक्षता बढ़ाना",
+      "c) डेटाबेस का आकार बढ़ाना",
+      "d) डेटा को अनऑर्गनाइज़ करना"
+    ],
+    answer: "b) डेटा की अखंडता (Integrity) और दक्षता बढ़ाना"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा नॉर्मल फॉर्म यह सुनिश्चित करता है कि प्रत्येक कॉलम में केवल एटोमिक (अविभाज्य) मान हों?",
+    options: [
+      "a) 1NF",
+      "b) 2NF",
+      "c) 3NF",
+      "d) BCNF"
+    ],
+    answer: "a) 1NF"
+  },
+  {
+    question: "एक रिलेशनल टेबल 1NF में नहीं होगी यदि उसमें क्या मौजूद हो?",
+    options: [
+      "a) प्राइमरी की",
+      "b) मल्टी-वैल्यूड एट्रिब्यूट्स (Multi-valued Attributes)",
+      "c) फॉरेन की",
+      "d) कोई इंडेक्स"
+    ],
+    answer: "b) मल्टी-वैल्यूड एट्रिब्यूट्स (Multi-valued Attributes)"
+  },
+  {
+    question: "2NF में किसी रिलेशन को रखने के लिए कौन-सी शर्त पूरी होनी चाहिए?",
+    options: [
+      "a) यह पहले से 1NF में होना चाहिए",
+      "b) इसमें कोई आंशिक निर्भरता (Partial Dependency) नहीं होनी चाहिए",
+      "c) दोनों a और b",
+      "d) इनमें से कोई नहीं"
+    ],
+    answer: "c) दोनों a और b"
+  },
+  {
+    question: "3NF में जाने के लिए, किसी टेबल को किस निर्भरता से मुक्त होना चाहिए?",
+    options: [
+      "a) फंक्शनल डिपेंडेंसी",
+      "b) ट्रांजिटिव डिपेंडेंसी",
+      "c) आंशिक निर्भरता (Partial Dependency)",
+      "d) सुपर की निर्भरता"
+    ],
+    answer: "b) ट्रांजिटिव डिपेंडेंसी"
+  },
+  {
+    question: "Star Schema मुख्य रूप से किस उद्देश्य के लिए उपयोग किया जाता है?",
+    options: [
+      "a) डेटा वेयरहाउसिंग",
+      "b) वेब होस्टिंग",
+      "c) नेटवर्किंग",
+      "d) डेटा ट्रांजैक्शन"
+    ],
+    answer: "a) डेटा वेयरहाउसिंग"
+  },
+  {
+    question: "Snowflake Schema किसका एक परिष्कृत (Advanced) रूप है?",
+    options: [
+      "a) Flat Model",
+      "b) Star Schema",
+      "c) Relational Model",
+      "d) Hierarchical Model"
+    ],
+    answer: "b) Star Schema"
+  },
+  {
+    question: "Relational Model में डेटा कैसे स्टोर किया जाता है?",
+    options: [
+      "a) ग्राफ में",
+      "b) ट्री में",
+      "c) टेबल में रिलेशन के रूप में",
+      "d) JSON फॉर्मेट में"
+    ],
+    answer: "c) टेबल में रिलेशन के रूप में"
+  },
+    {
+    question: "2NF में जाने के लिए, टेबल को पहले किस नॉर्मल फॉर्म में होना चाहिए?",
+    options: [
+      "a) 3NF",
+      "b) 1NF",
+      "c) BCNF",
+      "d) 4NF"
+    ],
+    answer: "b) 1NF"
+  },
+  {
+    question: "2NF किस प्रकार की निर्भरता (Dependency) को समाप्त करता है?",
+    options: [
+      "a) आंशिक निर्भरता (Partial Dependency)",
+      "b) ट्रांजिटिव निर्भरता (Transitive Dependency)",
+      "c) फंक्शनल निर्भरता (Functional Dependency)",
+      "d) बहुसंख्यक निर्भरता (Multi-valued Dependency)"
+    ],
+    answer: "a) आंशिक निर्भरता (Partial Dependency)"
+  },
+  {
+    question: "3NF में टेबल को क्या होना चाहिए?",
+    options: [
+      "a) 1NF में",
+      "b) 2NF में",
+      "c) ट्रांजिटिव निर्भरता (Transitive Dependency) से मुक्त",
+      "d) उपरोक्त सभी"
+    ],
+    answer: "d) उपरोक्त सभी"
+  },
+
+  // Data Integrity
+  {
+    question: "डेटा इंटीग्रिटी (Data Integrity) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "a) डेटा सुरक्षा को बढ़ाना",
+      "b) डेटा की सटीकता, स्थिरता और विश्वसनीयता सुनिश्चित करना",
+      "c) डेटा ट्रांसमिशन को तेज करना",
+      "d) डेटा स्टोरेज स्पेस को कम करना"
+    ],
+    answer: "b) डेटा की सटीकता, स्थिरता और विश्वसनीयता सुनिश्चित करना"
+  },
+  {
+    question: "डेटा इंटीग्रिटी के कितने प्रकार होते हैं?",
+    options: [
+      "a) 2",
+      "b) 3",
+      "c) 4",
+      "d) 5"
+    ],
+    answer: "d) 5 (Accuracy, Consistency, Completeness, Reliability, Security)"
+  },
+
+  // DDL, DML, DCL
+  {
+    question: "DDL (Data Definition Language) का उपयोग किसके लिए किया जाता है?",
+    options: [
+      "a) डेटा को संशोधित करने के लिए",
+      "b) डेटाबेस की संरचना (Structure) को परिभाषित करने के लिए",
+      "c) डेटा सुरक्षा बढ़ाने के लिए",
+      "d) डेटाबेस से डेटा पुनः प्राप्त करने के लिए"
+    ],
+    answer: "b) डेटाबेस की संरचना (Structure) को परिभाषित करने के लिए"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा DDL कमांड है?",
+    options: [
+      "a) INSERT",
+      "b) DELETE",
+      "c) CREATE",
+      "d) UPDATE"
+    ],
+    answer: "c) CREATE"
+  },
+  {
+    question: "DML (Data Manipulation Language) का उपयोग किस लिए किया जाता है?",
+    options: [
+      "a) डेटा को जोड़ने, हटाने और संशोधित करने के लिए",
+      "b) डेटाबेस के उपयोगकर्ताओं को प्रबंधित करने के लिए",
+      "c) डेटाबेस में तालिकाओं को बनाने के लिए",
+      "d) डेटाबेस बैकअप लेने के लिए"
+    ],
+    answer: "a) डेटा को जोड़ने, हटाने और संशोधित करने के लिए"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा DML स्टेटमेंट है?",
+    options: [
+      "a) CREATE",
+      "b) ALTER",
+      "c) INSERT",
+      "d) DROP"
+    ],
+    answer: "c) INSERT"
+  },
+  {
+    question: "DCL (Data Control Language) का उपयोग किस लिए किया जाता है?",
+    options: [
+      "a) डेटाबेस उपयोगकर्ताओं को एक्सेस प्रदान करने और हटाने के लिए",
+      "b) डेटा का हेरफेर (Manipulation) करने के लिए",
+      "c) डेटाबेस स्कीमा को संशोधित करने के लिए",
+      "d) डेटा की ट्रांजैक्शन को नियंत्रित करने के लिए"
+    ],
+    answer: "a) डेटाबेस उपयोगकर्ताओं को एक्सेस प्रदान करने और हटाने के लिए"
+  },
+  {
+    question: "DCL के कौन-से कमांड होते हैं?",
+    options: [
+      "a) GRANT, REVOKE",
+      "b) SELECT, INSERT",
+      "c) DELETE, UPDATE",
+      "d) COMMIT, ROLLBACK"
+    ],
+    answer: "a) GRANT, REVOKE"
+  },
+  {
+    question: "डोमेन इंटीग्रिटी का मुख्य उद्देश्य क्या है?",
+    options: [
+      "a) डेटा के डुप्लिकेशन को रोकना",
+      "b) डेटाबेस में मान्य (valid) डेटा की सीमा को परिभाषित करना",
+      "c) डेटा को अधिक सुरक्षित बनाना",
+      "d) डेटाबेस की परफॉर्मेंस बढ़ाना"
+    ],
+    answer: "b) डेटाबेस में मान्य (valid) डेटा की सीमा को परिभाषित करना"
+  },
+  {
+    question: "डोमेन इंटीग्रिटी सुनिश्चित करने के लिए किसका उपयोग किया जाता है?",
+    options: [
+      "a) Primary Key",
+      "b) Foreign Key",
+      "c) Check Constraints और Data Types",
+      "d) Indexes"
+    ],
+    answer: "c) Check Constraints और Data Types"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

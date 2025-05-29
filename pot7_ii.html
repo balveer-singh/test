@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: "समान्य मूल्यांकन में कौन सा उद्देश्य नहीं होता?",
+    options: [
+      "छात्रों की प्रगति मापना",
+      "शिक्षक की क्षमता मापना",
+      "कार्य को सुधारने के लिए प्रतिक्रिया प्राप्त करना",
+      "सिर्फ जानकारी इकट्ठा करना"
+    ],
+    answer: "सिर्फ जानकारी इकट्ठा करना"
+  },
+  {
+    question: "Kirkpatrick के स्तर 2 (सीखना) का उद्देश्य क्या है?",
+    options: [
+      "यह मापना कि छात्रों ने प्रशिक्षण के दौरान कितना ज्ञान प्राप्त किया",
+      "यह मापना कि छात्रों का व्यवहार प्रशिक्षण के बाद कैसे बदला",
+      "यह मापना कि छात्रों को किस प्रकार की प्रतिक्रिया मिली",
+      "यह मापना कि छात्रों ने अपने कौशल में कितनी सुधार की"
+    ],
+    answer: "यह मापना कि छात्रों ने प्रशिक्षण के दौरान कितना ज्ञान प्राप्त किया"
+  },
+  {
+    question: "आंतरिक सत्यापन (Internal Validation) का उद्देश्य क्या है?",
+    options: [
+      "यह मापना कि प्रशिक्षण कार्यक्रम ने निर्धारित व्यवहारात्मक लक्ष्यों को प्राप्त किया है या नहीं",
+      "प्रशिक्षण के बाद छात्रों की प्रतिक्रिया को प्राप्त करना",
+      "बाहरी परीक्षणों से परिणामों की तुलना करना",
+      "केवल छात्रों के कार्य को मापना"
+    ],
+    answer: "यह मापना कि प्रशिक्षण कार्यक्रम ने निर्धारित व्यवहारात्मक लक्ष्यों को प्राप्त किया है या नहीं"
+  },
+  {
+    question: "ऑब्जेक्टिव प्रकार के परीक्षण को कैसे अंकित किया जाता है?",
+    options: [
+      "व्यक्तिगत विचारों पर आधारित",
+      "केवल विषयगत निर्णय द्वारा",
+      "वस्तुनिष्ठ रूप से, क्योंकि एक सही उत्तर होता है",
+      "हाथ की लिखावट की गुणवत्ता के आधार पर"
+    ],
+    answer: "वस्तुनिष्ठ रूप से, क्योंकि एक सही उत्तर होता है"
+  },
+  {
+    question: "ऑब्जेक्टिव प्रकार के परीक्षण का मुख्य दोष क्या है?",
+    options: [
+      "अंकों का मूल्यांकन समय-साध्य होता है",
+      "उत्तरों का अनुमान लगाने की संभावना होती है",
+      "मूल्यांकन कठिन होता है",
+      "इसमें विस्तृत उत्तर की आवश्यकता होती है"
+    ],
+    answer: "उत्तरों का अनुमान लगाने की संभावना होती है"
+  },
+  {
+    question: "मल्टीपल चॉइस टेस्ट का मुख्य उद्देश्य क्या है?",
+    options: [
+      "छात्र की अभिव्यक्ति को मापना",
+      "छात्रों की समस्या समाधान क्षमता का मूल्यांकन करना",
+      "केवल यादाश्त की जांच करना",
+      "छात्र के लेखन कौशल को मापना"
+    ],
+    answer: "छात्रों की समस्या समाधान क्षमता का मूल्यांकन करना"
+  },
+  {
+    question: "ऑब्जेक्टिव टेस्ट के लाभ में से कौन सा सही है?",
+    options: [
+      "मूल्यांकन में व्यक्तिगत राय का प्रभाव होता है",
+      "सभी विषयों को आसानी से कवर किया जा सकता है",
+      "इसे डिज़ाइन करना बहुत आसान है",
+      "यह केवल सरल कौशल को मापने के लिए उपयुक्त है"
+    ],
+    answer: "सभी विषयों को आसानी से कवर किया जा सकता है"
+  },
+  {
+    question: "किसी मल्टीपल चॉइस प्रश्न का \"स्टेम\" किसे कहते हैं?",
+    options: [
+      "उत्तरों का चयन",
+      "प्रश्न का मुख्य हिस्सा जिसमें जानकारी दी जाती है",
+      "सही उत्तर",
+      "गलत विकल्प"
+    ],
+    answer: "प्रश्न का मुख्य हिस्सा जिसमें जानकारी दी जाती है"
+  },
+  {
+    question: "ऑब्जेक्टिव प्रकार के परीक्षण के डिज़ाइन में शिक्षक को किस बात का ध्यान रखना चाहिए?",
+    options: [
+      "प्रश्नों की कोई पुनरावृत्ति नहीं होनी चाहिए",
+      "प्रश्नों को जितना संभव हो उतना सरल बनाना चाहिए",
+      "प्रश्नों में स्पष्ट संकेत होने चाहिए",
+      "ऊपर सभी"
+    ],
+    answer: "ऊपर सभी"
+  },
+  {
+    question: "ऑब्जेक्टिव टेस्ट के किस प्रकार के सवाल सबसे ज्यादा परीक्षण किए जाते हैं?",
+    options: [
+      "लघु उत्तर प्रकार",
+      "प्रकार का मिलान (Matching Type)",
+      "मल्टीपल चॉइस प्रकार",
+      "सटीक गलत (True/False)"
+    ],
+    answer: "मल्टीपल चॉइस प्रकार"
+  },
+  {
+    question: 'एक मल्टीपल चॉइस प्रश्न में "डिस्ट्रैक्टर" का क्या अर्थ है?',
+    options: [
+      'सही उत्तर',
+      'एक विकल्प जो छात्रों को भ्रमित करने के लिए है',
+      'प्रश्न का मुख्य हिस्सा',
+      'कोई अतिरिक्त जानकारी'
+    ],
+    answer: 'एक विकल्प जो छात्रों को भ्रमित करने के लिए है'
+  },
+  {
+    question: 'ऑब्जेक्टिव टेस्ट का एक मुख्य लाभ क्या है?',
+    options: [
+      'इसका मूल्यांकन लंबा और जटिल होता है',
+      'सही उत्तर की पहचान करना आसान होता है',
+      'यह केवल उच्च-स्तरीय सोच के कौशल को मापता है',
+      'इसके माध्यम से छात्र के व्यक्तित्व को मापा जा सकता है'
+    ],
+    answer: 'सही उत्तर की पहचान करना आसान होता है'
+  },
+  {
+    question: 'जब मल्टीपल चॉइस प्रश्न की संरचना की जाती है, तो कितने विकल्प होने चाहिए?',
+    options: ['तीन', 'चार', 'पांच', 'दो'],
+    answer: 'चार'
+  },
+  {
+    question: 'ऑब्जेक्टिव प्रकार के परीक्षण के डिज़ाइन में प्रमुख ध्यान किस पर होना चाहिए?',
+    options: [
+      'छात्रों की याददाश्त पर',
+      'छात्र के सोचने की क्षमता और समझ पर',
+      'छात्र के व्यवहार पर',
+      'छात्र के व्यक्तिगत विचारों पर'
+    ],
+    answer: 'छात्र के सोचने की क्षमता और समझ पर'
+  },
+  {
+    question: 'एक ऑब्जेक्टिव प्रश्न पत्र तैयार करते समय किसे प्राथमिकता दी जानी चाहिए?',
+    options: [
+      'प्रश्नों की विविधता और अस्पष्टता',
+      'समान्य और जटिल प्रश्नों का संतुलन',
+      'केवल सरल प्रश्न',
+      'केवल तकनीकी प्रश्न'
+    ],
+    answer: 'समान्य और जटिल प्रश्नों का संतुलन'
+  },
+  {
+    question: 'टेस्ट प्रोफाइल की भूमिका क्या है?',
+    options: [
+      'परीक्षण के लिए प्रश्नों की सूची तैयार करना',
+      'परीक्षण के परिणामों का विश्लेषण करना',
+      'प्रश्नपत्र के विकास की निगरानी करना और सामग्री का वैधता सुनिश्चित करना',
+      'छात्रों को अभ्यास देने के लिए मॉडल प्रश्न बनाना'
+    ],
+    answer: 'प्रश्नपत्र के विकास की निगरानी करना और सामग्री का वैधता सुनिश्चित करना'
+  },
+  {
+    question: 'ऑब्जेक्टिव परीक्षण का एक मुख्य नुकसान क्या है?',
+    options: [
+      'इसका मूल्यांकन आसान होता है',
+      'इसमें नकल की संभावना अधिक होती है',
+      'यह छात्र की वास्तविक क्षमता को मापता है',
+      'इसे डिज़ाइन करना बहुत आसान होता है'
+    ],
+    answer: 'इसमें नकल की संभावना अधिक होती है'
+  },
+  {
+    question: 'ऑब्जेक्टिव परीक्षण में ट्रिकी प्रश्नों से क्या बचना चाहिए?',
+    options: [
+      'हाँ, क्योंकि ये विद्यार्थियों को भ्रमित कर सकते हैं',
+      'नहीं, ये परीक्षण को कठिन बनाते हैं',
+      'हाँ, लेकिन ये महत्वपूर्ण होते हैं',
+      'नहीं, ये सही सोच को मापने के लिए आवश्यक होते हैं'
+    ],
+    answer: 'हाँ, क्योंकि ये विद्यार्थियों को भ्रमित कर सकते हैं'
+  },
+  {
+    question: 'निम्नलिखित में से कौन सा विकल्प "लक्ष्य निर्धारण" की प्रक्रिया का एक हिस्सा नहीं है?',
+    options: [
+      'योजना बनाना',
+      'उद्देश्य निर्धारित करना',
+      'समय सीमा तय करना',
+      'परीक्षण करना'
+    ],
+    answer: 'परीक्षण करना'
+  },
+  {
+    question: '"संवेदनशीलता का मूल्यांकन" किस प्रकार के मूल्यांकन में आता है?',
+    options: [
+      'प्रेरणा मूल्यांकन',
+      'शारीरिक मूल्यांकन',
+      'मानसिक मूल्यांकन',
+      'व्यक्तिगत मूल्यांकन'
+    ],
+    answer: 'शारीरिक मूल्यांकन'
+  },
+  {
+    question: 'निम्नलिखित में से कौन सा उद्देश्य मूल्यांकन का एक लाभ नहीं है?',
+    options: [
+      'यह सीखने की प्रक्रिया को बेहतर बनाता है',
+      'छात्रों के आत्मविश्वास को बढ़ाता है',
+      'मूल्यांकन के लिए कोई नियम नहीं होते',
+      'यह ग्रेडिंग को आसान बनाता है'
+    ],
+    answer: 'मूल्यांकन के लिए कोई नियम नहीं होते'
+  },
+  {
+    question: 'फॉर्मेटिव मूल्यांकन का मुख्य उद्देश्य क्या है?',
+    options: [
+      'छात्रों के अंतर्गत प्राप्त ज्ञान का अंतिम मूल्यांकन',
+      'विद्यार्थियों के प्रदर्शन के बारे में समय समय पर प्रतिक्रिया देना',
+      'कक्षा के समग्र परिणाम को जानना',
+      'छात्रों की अंतिम परीक्षा लेना'
+    ],
+    answer: 'विद्यार्थियों के प्रदर्शन के बारे में समय समय पर प्रतिक्रिया देना'
+  },
+  {
+    question: '"कक्षा में प्रभावी प्रतिक्रिया प्रदान करना" निम्नलिखित में से किस प्रकार के मूल्यांकन का हिस्सा है?',
+    options: [
+      'समाहार मूल्यांकन',
+      'संवाद मूल्यांकन',
+      'फॉर्मेटिव मूल्यांकन',
+      'अनौपचारिक मूल्यांकन'
+    ],
+    answer: 'फॉर्मेटिव मूल्यांकन'
+  },
+  {
+    question: 'संपूर्ण कक्षा में छात्रों का ज्ञान और कौशल मापने के लिए कौन सा मूल्यांकन तरीका सबसे उपयुक्त है?',
+    options: [
+      'समाहार मूल्यांकन',
+      'फॉर्मेटिव मूल्यांकन',
+      'ओपन बुक मूल्यांकन',
+      'वर्ड प्रोसेसिंग मूल्यांकन'
+    ],
+    answer: 'समाहार मूल्यांकन'
+  },
+  {
+    question: '"नेशनल काउंसिल फॉर वोकेशनल ट्रेनिंग" (NCVT) द्वारा संचालित परीक्षा किस प्रकार की होती है?',
+    options: [
+      'बुनियादी परीक्षा',
+      'ट्रेड थ्योरी और व्यापार अभ्यास',
+      'केवल लिखित परीक्षा',
+      'केवल वर्बल परीक्षा'
+    ],
+    answer: 'ट्रेड थ्योरी और व्यापार अभ्यास'
+  },
+  {
+    question: 'निम्नलिखित में से कौन सा मूल्यांकन का सबसे प्रमुख उद्देश्य है?',
+    options: [
+      'छात्रों के ज्ञान और कौशल की जांच करना',
+      'केवल अंक प्रदान करना',
+      'छात्रों के साथ प्रतिस्पर्धा करना',
+      'पठन और लेखन के कौशल का मूल्यांकन करना'
+    ],
+    answer: 'छात्रों के ज्ञान और कौशल की जांच करना'
+  },
+   {
+    question: '"मूल्यांकन के बारे में आत्मनिरीक्षण करना" किस प्रकार के मूल्यांकन में आता है?',
+    options: [
+      'समाहार मूल्यांकन',
+      'फॉर्मेटिव मूल्यांकन',
+      'आत्ममूल्यांकन',
+      'ग्रेड आधारित मूल्यांकन'
+    ],
+    answer: 'आत्ममूल्यांकन'
+  },
+  {
+    question: 'कंप्यूटर कौशल का मूल्यांकन किस प्रकार के परीक्षण द्वारा किया जाता है?',
+    options: [
+      'विशेषज्ञ परीक्षा',
+      'रचनात्मक परीक्षा',
+      'स्वचालित परीक्षण',
+      'प्रदर्शन मूल्यांकन'
+    ],
+    answer: 'प्रदर्शन मूल्यांकन'
+  },
+  {
+    question: 'NSQF का पूरा रूप क्या है?',
+    options: [
+      'नेशनल स्कूल क्वालिफिकेशन फ्रेमवर्क',
+      'राष्ट्रीय कौशल योग्यता फ्रेमवर्क',
+      'राष्ट्रीय विज्ञान गुणवत्ता फ्रेमवर्क',
+      'नेशनल सिस्टम क्वालिफिकेशन फ्रेमवर्क'
+    ],
+    answer: 'राष्ट्रीय कौशल योग्यता फ्रेमवर्क'
+  },
+  {
+    question: "NSQF में 'Competence' का क्या अर्थ है?",
+    options: [
+      'किसी कार्य को बिना किसी मदद के करना',
+      'ज्ञान और कौशल का मिश्रण',
+      'किसी कार्य में क्षमता और जिम्मेदारी के साथ भूमिका निभाने की योग्यता',
+      'अध्ययन का एक निर्धारित पाठ्यक्रम'
+    ],
+    answer: 'किसी कार्य में क्षमता और जिम्मेदारी के साथ भूमिका निभाने की योग्यता'
+  },
+  {
+    question: 'NSQF के किस स्तर में एक व्यक्ति को किसी कार्य को स्वतंत्र रूप से करने की क्षमता अपेक्षित होती है?',
+    options: ['स्तर 1', 'स्तर 3', 'स्तर 5', 'स्तर 8'],
+    answer: 'स्तर 5'
+  },
+  {
+    question: "NSQF में 'Learning Outcomes' का क्या अर्थ है?",
+    options: [
+      'एक प्रशिक्षु द्वारा सीखी गई जानकारी और कौशल',
+      'एक प्रशिक्षु का शिक्षा स्तर',
+      'एक पाठ्यक्रम के अंतर्गत किए गए कार्य',
+      'किसी कार्यक्रम के दौरान ली गई छुट्टियाँ'
+    ],
+    answer: 'एक प्रशिक्षु द्वारा सीखी गई जानकारी और कौशल'
+  },
+  {
+    question: 'NSQF में कितने स्तर होते हैं?',
+    options: ['5', '8', '10', '12'],
+    answer: '10'
+  },
+  {
+    question: "'RPL' का पूरा रूप क्या है?",
+    options: [
+      'Recognized Prior Learning',
+      'Recorded Previous Learning',
+      'Required Prior Learning',
+      'Recognized Practical Learning'
+    ],
+    answer: 'Recognized Prior Learning'
+  },
+  {
+    question: 'NSQF के तहत प्रशिक्षण के लिए किसकी जिम्मेदारी होती है?',
+    options: [
+      'केवल राज्य सरकार',
+      'केवल निजी संस्थान',
+      'प्रशिक्षक, संस्थान और राज्य निदेशालय',
+      'केवल राष्ट्रीय कौशल विकास एजेंसी'
+    ],
+    answer: 'प्रशिक्षक, संस्थान और राज्य निदेशालय'
+  },
+  {
+    question: 'NSQF का उद्देश्य क्या है?',
+    options: [
+      'प्रशिक्षण का स्तर निर्धारित करना',
+      'कौशल और योग्यताओं को एक निर्धारित मानक पर लाना',
+      'केवल सैद्धांतिक ज्ञान प्रदान करना',
+      'कार्ययों के लिए नए उपकरण विकसित करना'
+    ],
+    answer: 'कौशल और योग्यताओं को एक निर्धारित मानक पर लाना'
+  },
+  {
+    question: 'NSQF के अंतर्गत किस प्रकार के कौशल का मूल्यांकन किया जाता है?',
+    options: [
+      'केवल सिद्धांत आधारित कौशल',
+      'केवल व्यावहारिक कौशल',
+      'दोनों सिद्धांत और व्यावहारिक कौशल',
+      'कोई कौशल नहीं मूल्यांकित किया जाता'
+    ],
+    answer: 'दोनों सिद्धांत और व्यावहारिक कौशल'
+  },
+  {
+    question: 'NSQF के तहत शिक्षकों की भूमिका क्या है?',
+    options: [
+      'केवल छात्रों को जानकारी प्रदान करना',
+      'विद्यार्थियों के लिए पाठ्यक्रम तैयार करना',
+      'प्रशिक्षुओं को सीखने के परिणामों के अनुसार प्रशिक्षण प्रदान करना',
+      'किसी भी प्रकार की सहायता न देना'
+    ],
+    answer: 'प्रशिक्षुओं को सीखने के परिणामों के अनुसार प्रशिक्षण प्रदान करना'
+  }
+  ];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

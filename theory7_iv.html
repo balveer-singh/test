@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  // Basic Understanding of Modules
+  {
+    question: `What is a module in Python?\nPython में module क्या है?`,
+    options: [
+      "A function / एक फंक्शन",
+      "A Python package / एक पैकेज",
+      "A file containing Python code, such as functions, classes, and variables / Python कोड वाली फाइल जैसे फंक्शन, क्लास, वैरिएबल",
+      "A built-in keyword / एक बिल्ट-इन कीवर्ड"
+    ],
+    answer: "A file containing Python code, such as functions, classes, and variables / Python कोड वाली फाइल जैसे फंक्शन, क्लास, वैरिएबल"
+  },
+  {
+    question: `What is the file extension for a Python module?\nPython module की फाइल एक्सटेंशन क्या होती है?`,
+    options: [
+      ".mod",
+      ".py",
+      ".txt",
+      ".exe"
+    ],
+    answer: ".py"
+  },
+  {
+    question: `What is the purpose of using modules in Python?\nPython में modules क्यों यूज़ करते हैं?`,
+    options: [
+      "To speed up program execution / प्रोग्राम को तेज चलाने के लिए",
+      "To organize and reuse code / कोड को व्यवस्थित करने और पुनः उपयोग के लिए",
+      "To make the program error-free / प्रोग्राम को error-free बनाने के लिए",
+      "To make variables global / वेरिएबल्स को global बनाने के लिए"
+    ],
+    answer: "To organize and reuse code / कोड को व्यवस्थित करने और पुनः उपयोग के लिए"
+  },
+  {
+    question: `Which keyword is used to include a module in another Python script?\nकिस कीवर्ड का उपयोग Python में किसी अन्य स्क्रिप्ट में module शामिल करने के लिए किया जाता है?`,
+    options: [
+      "include",
+      "require",
+      "use",
+      "import"
+    ],
+    answer: "import"
+  },
+  {
+    question: `What will be the output of the following code?\nimport math\nprint(math.sqrt(16))\nनीचे दिए गए कोड का आउटपुट क्या होगा?`,
+    options: [
+      "4",
+      "8",
+      "16",
+      "Error / त्रुटि"
+    ],
+    answer: "4"
+  },
+  {
+    question: `What is the correct way to import only the sqrt function from the math module?\nmath module से सिर्फ sqrt फंक्शन कैसे इम्पोर्ट करें?`,
+    options: [
+      "import math.sqrt",
+      "from math import sqrt",
+      "import sqrt from math",
+      "include math.sqrt"
+    ],
+    answer: "from math import sqrt"
+  },
+
+  // Using Module Contents
+  {
+    question: `Given a module module.py with a function add(a, b), how do you call add in another file after importing the module?\nmodule.py में add(a, b) फंक्शन है, इम्पोर्ट करने के बाद दूसरे फाइल में इसे कैसे कॉल करें?`,
+    options: [
+      "add(2, 3)",
+      "module::add(2, 3)",
+      "module.add(2, 3)",
+      "module>add(2, 3)"
+    ],
+    answer: "module.add(2, 3)"
+  },
+  {
+    question: `If you only want to import specific items from a module, which syntax is correct?\nअगर module से कुछ specific आइटम्स इम्पोर्ट करने हों तो कौन सा सिंटैक्स सही है?`,
+    options: [
+      "import module.items",
+      "from module import item1, item2",
+      "import item1, item2 from module",
+      "using module(item1, item2)"
+    ],
+    answer: "from module import item1, item2"
+  },
+
+  // Special Module and Advanced Usage
+  {
+    question: `What is the purpose of the __init__.py file in a Python package?\nPython पैकेज में __init__.py फाइल का क्या उद्देश्य है?`,
+    options: [
+      "To start the Python interpreter / Python interpreter शुरू करना",
+      "To define classes in the package / पैकेज में क्लासेज़ डिफाइन करना",
+      "To initialize the package and make it recognizable as a Python package / पैकेज को initialize करना और इसे Python पैकेज बनाना",
+      "To store metadata of the module / मॉड्यूल का metadata स्टोर करना"
+    ],
+    answer: "To initialize the package and make it recognizable as a Python package / पैकेज को initialize करना और इसे Python पैकेज बनाना"
+  },
+  {
+    question: `What happens if you import a module multiple times in the same program?\nअगर एक ही प्रोग्राम में एक module को कई बार import किया जाए तो क्या होता है?`,
+    options: [
+      "It causes an error / त्रुटि होती है",
+      "The module is reloaded every time / हर बार module reload होता है",
+      "The module is imported only once / module केवल एक बार import होता है",
+      "The program will stop / प्रोग्राम रुक जाएगा"
+    ],
+    answer: "The module is imported only once / module केवल एक बार import होता है"
+  },
+
+  // Exception Handling Basics
+  {
+    question: `What is the purpose of exception handling in Python?\nPython में exception handling का उद्देश्य क्या है?`,
+    options: [
+      "To terminate the program on error / प्रोग्राम को त्रुटि पर बंद करना",
+      "To find syntax errors / syntax errors ढूंढना",
+      "To gracefully handle runtime errors / runtime errors को gracefully हैंडल करना",
+      "To increase code speed / कोड की गति बढ़ाना"
+    ],
+    answer: "To gracefully handle runtime errors / runtime errors को gracefully हैंडल करना"
+  },
+  {
+    question: `Which keyword is used to catch and handle an exception?\nकौन सा कीवर्ड exception पकड़ने और हैंडल करने के लिए प्रयोग होता है?`,
+    options: [
+      "throw",
+      "try",
+      "except",
+      "catch"
+    ],
+    answer: "except"
+  },
+  {
+    question: `Which block is always executed regardless of whether an exception is raised or not?\nकौन सा ब्लॉक exception के होने या न होने पर भी हमेशा execute होता है?`,
+    options: [
+      "try",
+      "except",
+      "else",
+      "finally"
+    ],
+    answer: "finally"
+  },
+  {
+    question: `What will the following code output if the user enters 0?\ntry:\n    x = int(input(\"Enter a number: \"))\n    print(10 / x)\nexcept ZeroDivisionError:\n    print(\"Error: Cannot divide by zero.\")\nअगर user 0 इनपुट करता है तो क्या होगा?`,
+    options: [
+      "10",
+      "0",
+      "Error: Cannot divide by zero.",
+      "No output / कोई आउटपुट नहीं"
+    ],
+    answer: "Error: Cannot divide by zero."
+  },
+
+  // Advanced Exception Usage
+  {
+    question: `What is the role of the else block in exception handling?\nexception handling में else ब्लॉक का क्या रोल है?`,
+    options: [
+      "It runs if an exception occurs / यह तब चलता है जब exception हो",
+      "It runs only if an exception is raised / यह तभी चलता है जब exception raise हो",
+      "It runs only if no exceptions are raised / यह तब चलता है जब कोई exception न हो",
+      "It handles all exceptions / यह सभी exceptions को हैंडल करता है"
+    ],
+    answer: "It runs only if no exceptions are raised / यह तब चलता है जब कोई exception न हो"
+  },
+  {
+    question: `Which of the following is the correct order of blocks in exception handling?\nexception handling में blocks का सही क्रम क्या है?`,
+    options: [
+      "try → else → except → finally",
+      "try → except → else → finally",
+      "try → finally → except → else",
+      "try → except → finally → else"
+    ],
+    answer: "try → except → else → finally"
+  },
+  {
+    question: `What type of exception does the following code handle?\nexcept ValueError:\n    print(\"Invalid number!\")\nयह code किस प्रकार की exception को हैंडल करता है?`,
+    options: [
+      "Division by zero / 0 से भाग",
+      "Invalid input conversion to integer or float / integer या float में invalid conversion",
+      "File not found / फाइल नहीं मिली",
+      "List index out of range / लिस्ट इंडेक्स बाहर"
+    ],
+    answer: "Invalid input conversion to integer or float / integer या float में invalid conversion"
+  },
+
+  // Generic Exception Handling & Best Practices
+  {
+    question: `What happens if no exception occurs in the try block and an else block is present?\nअगर try ब्लॉक में कोई exception नहीं होता और else ब्लॉक मौजूद है तो क्या होता है?`,
+    options: [
+      "else block is skipped / else ब्लॉक skip हो जाता है",
+      "except block is executed / except ब्लॉक execute होता है",
+      "else block is executed / else ब्लॉक execute होता है",
+      "finally block is skipped / finally ब्लॉक skip हो जाता है"
+    ],
+    answer: "else block is executed / else ब्लॉक execute होता है"
+  },
+  {
+    question: `Which of the following is a generic way to catch any exception?\nनिम्न में से कौन सा तरीका किसी भी exception को पकड़ने का generic तरीका है?`,
+    options: [
+      "except:",
+      "except All:",
+      "catch Exception:",
+      "handle Exception:"
+    ],
+    answer: "except:"
+  },
+   {
+    question: `Why is the finally block useful?\nfinally ब्लॉक क्यों उपयोगी होता है?`,
+    options: [
+      "It helps raise new exceptions / यह नई exceptions को raise करने में मदद करता है",
+      "It terminates the program / यह प्रोग्राम को समाप्त करता है",
+      "It runs regardless of whether an error occurs or not, often used for cleanup / यह error हो या न हो, हमेशा चलता है, cleanup के लिए उपयोगी",
+      "It stores error logs / यह error logs को स्टोर करता है"
+    ],
+    answer: "It runs regardless of whether an error occurs or not, often used for cleanup / यह error हो या न हो, हमेशा चलता है, cleanup के लिए उपयोगी"
+  },
+
+  // Built-in functions - basics
+  {
+    question: `Which built-in function is used to take input from the user in Python?\nPython में user से input लेने के लिए कौन सा built-in function इस्तेमाल होता है?`,
+    options: [
+      "get()",
+      "input()",
+      "read()",
+      "scan()"
+    ],
+    answer: "input()"
+  },
+  {
+    question: `What does the len() function return?\nlen() फंक्शन क्या रिटर्न करता है?`,
+    options: [
+      "Last index of a list / लिस्ट का आखिरी इंडेक्स",
+      "Maximum value in a list / लिस्ट में अधिकतम मान",
+      "Number of items in an object / ऑब्जेक्ट में items की संख्या",
+      "Memory size of the list / लिस्ट का मेमोरी साइज"
+    ],
+    answer: "Number of items in an object / ऑब्जेक्ट में items की संख्या"
+  },
+  {
+    question: `Which function is used to check the type of a variable in Python?\nPython में variable का type पता लगाने के लिए कौन सा function इस्तेमाल होता है?`,
+    options: [
+      "var()",
+      "typeof()",
+      "checktype()",
+      "type()"
+    ],
+    answer: "type()"
+  },
+  {
+    question: `Which function converts a value to an integer in Python?\nPython में किसी value को integer में convert करने के लिए कौन सा function है?`,
+    options: [
+      "float()",
+      "str()",
+      "int()",
+      "num()"
+    ],
+    answer: "int()"
+  },
+  {
+    question: `Which function generates a sequence of numbers in Python?\nPython में संख्या की एक श्रृंखला उत्पन्न करने वाला function कौन सा है?`,
+    options: [
+      "sequence()",
+      "generate()",
+      "range()",
+      "list()"
+    ],
+    answer: "range()"
+  },
+
+  // Mathematical & Data Functions
+  {
+    question: `Which function returns the absolute value of a number?\nकौन सा function संख्या का absolute value देता है?`,
+    options: [
+      "abs()",
+      "round()",
+      "int()",
+      "sum()"
+    ],
+    answer: "abs()"
+  },
+  {
+    question: `What does sum([1, 2, 3]) return?\nsum([1, 2, 3]) क्या रिटर्न करता है?`,
+    options: [
+      "5",
+      "6",
+      "123",
+      "Error / त्रुटि"
+    ],
+    answer: "6"
+  },
+  {
+    question: `Which function returns the highest value in a sequence?\nकौन सा function एक अनुक्रम में सबसे बड़ी मान रिटर्न करता है?`,
+    options: [
+      "high()",
+      "top()",
+      "max()",
+      "large()"
+    ],
+    answer: "max()"
+  },
+  {
+    question: `What is the purpose of the round() function?\nround() function का उद्देश्य क्या है?`,
+    options: [
+      "Round a number down / संख्या को नीचे round करना",
+      "Round a number to the nearest integer / संख्या को निकटतम पूर्णांक तक round करना",
+      "Round a number to 2 decimal places only / संख्या को केवल 2 दशमलव स्थानों तक round करना",
+      "It randomly picks a number / यह कोई संख्या यादृच्छिक रूप से चुनता है"
+    ],
+    answer: "Round a number to the nearest integer / संख्या को निकटतम पूर्णांक तक round करना"
+  },
+
+  // Advanced Built-in Functions
+  {
+    question: `Which function returns both index and value when looping through a sequence?\nकौन सा function लूप करते समय index और value दोनों देता है?`,
+    options: [
+      "index()",
+      "map()",
+      "enumerate()",
+      "count()"
+    ],
+    answer: "enumerate()"
+  },
+  {
+    question: `Which built-in function is used to sort a list in Python?\nPython में लिस्ट को sort करने के लिए कौन सा built-in function उपयोग होता है?`,
+    options: [
+      "order()",
+      "arrange()",
+      "sortlist()",
+      "sorted()"
+    ],
+    answer: "sorted()"
+  },
+  {
+    question: `What does the zip() function do?\nzip() function क्या करता है?`,
+    options: [
+      "Compresses files / फाइलों को compress करता है",
+      "Pairs elements from multiple iterables / कई iterable से तत्वों को जोड़ी बनाता है",
+      "Splits a list / लिस्ट को विभाजित करता है",
+      "Finds duplicates / duplicate ढूंढता है"
+    ],
+    answer: "Pairs elements from multiple iterables / कई iterable से तत्वों को जोड़ी बनाता है"
+  },
+  {
+    question: `Which function applies a function to each item in an iterable?\nकौन सा function iterable के हर item पर किसी function को लागू करता है?`,
+    options: [
+      "filter()",
+      "map()",
+      "all()",
+      "type()"
+    ],
+    answer: "map()"
+  },
+  {
+    question: `Which function is used to evaluate a string expression as Python code?\nकौन सा function string expression को Python कोड की तरह evaluate करता है?`,
+    options: [
+      "eval()",
+      "exec()",
+      "interpret()",
+      "run()"
+    ],
+    answer: "eval()"
+  },
+  {
+    question: `Which function returns True only if all elements in an iterable are true?\nकौन सा function तब True देता है जब iterable के सभी elements True हों?`,
+    options: [
+      "any()",
+      "all()",
+      "truthy()",
+      "valid()"
+    ],
+    answer: "all()"
+  },
+
+  // File Handling Basics
+  {
+    question: `Which function is used to open a file in Python?\nPython में फ़ाइल खोलने के लिए कौन सा function उपयोग होता है?`,
+    options: [
+      "openfile()",
+      "file.open()",
+      "open()",
+      "startfile()"
+    ],
+    answer: "open()"
+  },
+  {
+    question: `What does the 'r' mode in the open() function do?\nopen() function में 'r' mode क्या करता है?`,
+    options: [
+      "Writes to a file / फ़ाइल में लिखता है",
+      "Reads a file / फ़ाइल पढ़ता है",
+      "Appends to a file / फ़ाइल में जोड़ता है",
+      "Creates a new file / नई फ़ाइल बनाता है"
+    ],
+    answer: "Reads a file / फ़ाइल पढ़ता है"
+  },
+  {
+    question: `Which method is used to read the entire content of a file?\nफ़ाइल की पूरी सामग्री पढ़ने के लिए कौन सा method उपयोग होता है?`,
+    options: [
+      "read()",
+      "readline()",
+      "readall()",
+      "readdata()"
+    ],
+    answer: "read()"
+  },
+  {
+    question: `What does the readline() function do?\nreadline() function क्या करता है?`,
+    options: [
+      "Reads the whole file / पूरी फ़ाइल पढ़ता है",
+      "Reads a single line / एक पंक्ति पढ़ता है",
+      "Reads all lines into a list / सभी पंक्तियों को लिस्ट में पढ़ता है",
+      "None of the above / उपरोक्त में से कोई नहीं"
+    ],
+    answer: "Reads a single line / एक पंक्ति पढ़ता है"
+  },
+  {
+    question: `Which method reads all lines and returns them as a list?\nकौन सा method सारी पंक्तियों को पढ़कर उन्हें list के रूप में देता है?`,
+    options: [
+      "readlist()",
+      "getlines()",
+      "readlines()",
+      "fetchlines()"
+    ],
+    answer: "readlines()"
+  },
+   {
+    question: `What does the 'w' mode do when opening a file?\nफ़ाइल खोलने के लिए 'w' मोड क्या करता है?`,
+    options: [
+      "Writes to the file and preserves old data / फ़ाइल में लिखता है और पुराना डेटा बचाता है",
+      "Writes to the file and erases old data / फ़ाइल में लिखता है और पुराना डेटा मिटा देता है",
+      "Reads and writes without overwriting / पढ़ता और लिखता है बिना overwrite किए",
+      "Appends data / डेटा जोड़ता है"
+    ],
+    answer: "Writes to the file and erases old data / फ़ाइल में लिखता है और पुराना डेटा मिटा देता है"
+  },
+  {
+    question: `Which method is used to write data to a file?\nफ़ाइल में डेटा लिखने के लिए कौन सा method इस्तेमाल होता है?`,
+    options: [
+      "add()",
+      "insert()",
+      "write()",
+      "put()"
+    ],
+    answer: "write()"
+  },
+  {
+    question: `Which mode is used to append data to an existing file?\nमौजूदा फ़ाइल में डेटा जोड़ने के लिए कौन सा मोड उपयोग होता है?`,
+    options: [
+      "'r'",
+      "'w'",
+      "'a'",
+      "'x'"
+    ],
+    answer: "'a'"
+  },
+  {
+    question: `What happens if the file does not exist and you open it in 'w' mode?\nअगर फ़ाइल मौजूद नहीं है और आप इसे 'w' मोड में खोलते हैं तो क्या होता है?`,
+    options: [
+      "FileNotFoundError",
+      "New file is created / नई फ़ाइल बन जाती है",
+      "File opens in read-only / फ़ाइल केवल पढ़ने के लिए खुलती है",
+      "Program crashes / प्रोग्राम क्रैश हो जाता है"
+    ],
+    answer: "New file is created / नई फ़ाइल बन जाती है"
+  },
+
+  // File Closing & Context Manager
+  {
+    question: `Which function is used to close an opened file?\nखुली हुई फ़ाइल बंद करने के लिए कौन सा function उपयोग होता है?`,
+    options: [
+      "end()",
+      "terminate()",
+      "close()",
+      "quit()"
+    ],
+    answer: "close()"
+  },
+  {
+    question: `Which of the following is the safest way to handle files in Python?\nPython में फ़ाइल संभालने का सबसे सुरक्षित तरीका कौन सा है?`,
+    options: [
+      "Using try-finally / try-finally का उपयोग",
+      "Using with statement / with स्टेटमेंट का उपयोग",
+      "Using only open() / केवल open() का उपयोग",
+      "Using file.close() after writing / लिखने के बाद file.close() का उपयोग"
+    ],
+    answer: "Using with statement / with स्टेटमेंट का उपयोग"
+  },
+  {
+    question: `What is the benefit of using with open(...) as file: syntax?\nwith open(...) as file: सिंटैक्स का क्या लाभ है?`,
+    options: [
+      "File is opened in append mode / फ़ाइल append मोड में खुलती है",
+      "File doesn't need to be closed manually / फ़ाइल को मैन्युअली बंद करने की जरूरत नहीं",
+      "File is automatically backed up / फ़ाइल अपने आप बैकअप हो जाती है",
+      "File opens in read-write mode / फ़ाइल read-write मोड में खुलती है"
+    ],
+    answer: "File doesn't need to be closed manually / फ़ाइल को मैन्युअली बंद करने की जरूरत नहीं"
+  },
+
+  // Advanced Concepts
+  {
+    question: `Which module helps in working with file paths and directories?\nफ़ाइल पाथ और डिरेक्टरीज़ के साथ काम करने के लिए कौन सा मॉड्यूल मदद करता है?`,
+    options: [
+      "file",
+      "shutil",
+      "os",
+      "pathlib"
+    ],
+    answer: "os"
+  },
+  {
+    question: `What will happen if file.read() is called after the file is closed?\nअगर फ़ाइल बंद होने के बाद file.read() कॉल किया जाए तो क्या होगा?`,
+    options: [
+      "Returns an empty string / खाली स्ट्रिंग लौटाता है",
+      "Returns None / None लौटाता है",
+      "Raises a ValueError / ValueError फेंकता है",
+      "Automatically reopens the file / फ़ाइल अपने आप फिर से खुल जाती है"
+    ],
+    answer: "Raises a ValueError / ValueError फेंकता है"
+  },
+  {
+    question: `Which mode allows reading and writing both in the same file?\nकौन सा मोड एक ही फ़ाइल में पढ़ने और लिखने दोनों की अनुमति देता है?`,
+    options: [
+      "'rw'",
+      "'w+'",
+      "'a+'",
+      "'r+'"
+    ],
+    answer: "'r+'"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

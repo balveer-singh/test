@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: "document.getElementsByName() किस प्रकार का मान (value) लौटाता है?",
+    options: [
+      "एक सिंगल एलिमेंट",
+      "एक नोड लिस्ट (NodeList)",
+      "एक बूलियन मान",
+      "एक संख्या"
+    ],
+    answer: "एक नोड लिस्ट (NodeList)"
+  },
+  {
+    question: "यदि कोई उपयोगकर्ता <input type=\"radio\" name=\"gender\"> के माध्यम से लिंग (gender) चुनता है, तो कितने तत्व getElementsByName(\"gender\") द्वारा लौटाए जाएंगे?",
+    options: [
+      "0",
+      "1",
+      "सभी \"gender\" नाम वाले इनपुट एलिमेंट्स की संख्या",
+      "केवल पहला \"gender\" नाम वाला एलिमेंट"
+    ],
+    answer: "सभी \"gender\" नाम वाले इनपुट एलिमेंट्स की संख्या"
+  },
+  {
+    question: "HTML में <form> टैग का मुख्य उद्देश्य क्या है?",
+    options: [
+      "HTML डॉक्यूमेंट को सजाना",
+      "यूजर इनपुट एकत्र करना और सर्वर पर भेजना",
+      "वेबपेज को स्टाइलिश बनाना",
+      "सभी विकल्प सही हैं"
+    ],
+    answer: "यूजर इनपुट एकत्र करना और सर्वर पर भेजना"
+  },
+  {
+    question: "किसी HTML फ़ॉर्म को जावास्क्रिप्ट में एक्सेस करने के लिए कौन-सा सही तरीका है?",
+    options: [
+      "document.forms[0]",
+      "document.getElementById(\"formId\")",
+      "document.querySelector(\"#formId\")",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "कौन-सा जावास्क्रिप्ट मेथड फ़ॉर्म डेटा को सर्वर पर सबमिट करता है?",
+    options: [
+      "form.validate()",
+      "form.reset()",
+      "form.submit()",
+      "form.send()"
+    ],
+    answer: "form.submit()"
+  },
+  {
+    question: "किस इवेंट का उपयोग फ़ॉर्म सबमिट करने से पहले डेटा वेलिडेट करने के लिए किया जाता है?",
+    options: [
+      "onchange",
+      "oninput",
+      "onsubmit",
+      "onvalidate"
+    ],
+    answer: "onsubmit"
+  },
+  {
+    question: "जावास्क्रिप्ट में किस मेथड का उपयोग फ़ॉर्म सबमिट होने से रोकने के लिए किया जाता है?",
+    options: [
+      "event.stopPropagation()",
+      "event.preventDefault()",
+      "event.stopSubmission()",
+      "event.disableSubmit()"
+    ],
+    answer: "event.preventDefault()"
+  },
+  {
+    question: "document.forms प्रॉपर्टी क्या रिटर्न करती है?",
+    options: [
+      "पेज पर सभी <form> एलिमेंट्स का कलेक्शन",
+      "केवल पहला <form> एलिमेंट",
+      "सभी इनपुट फ़ील्ड का कलेक्शन",
+      "सभी बटन एलिमेंट्स"
+    ],
+    answer: "पेज पर सभी <form> एलिमेंट्स का कलेक्शन"
+  },
+  {
+    question: "इनमें से कौन-सा फ़ॉर्म फील्ड का मान प्राप्त करने का सही तरीका है?",
+    options: [
+      "document.getElementById(\"email\").text",
+      "document.getElementById(\"email\").value",
+      "document.getElementById(\"email\").getText()",
+      "document.getElementById(\"email\").innerHTML"
+    ],
+    answer: "document.getElementById(\"email\").value"
+  },
+  {
+    question: "HTML फ़ॉर्म का कौन-सा एट्रिब्यूट डेटा सबमिशन के लिए URL निर्धारित करता है?",
+    options: [
+      "method",
+      "action",
+      "name",
+      "id"
+    ],
+    answer: "action"
+  },
+  {
+    question: "किस HTTP मेथड का उपयोग आमतौर पर डेटा को सुरक्षित रूप से सर्वर पर भेजने के लिए किया जाता है?",
+    options: [
+      "GET",
+      "POST",
+      "FETCH",
+      "SEND"
+    ],
+    answer: "POST"
+  },
+  {
+    question: "जब यूजर \"Enter\" की दबाता है, तो कौन-सा इवेंट ट्रिगर होता है (अगर फॉर्म में सबमिट बटन हो)?",
+    options: [
+      "onkeydown",
+      "onkeypress",
+      "onsubmit",
+      "oninput"
+    ],
+    answer: "onsubmit"
+  },
+  {
+    question: "कौन सा विकल्प वेब विकास में कुकी को सबसे अच्छे तरीके से परिभाषित करता है?",
+    options: [
+      "सर्वर पर संग्रहीत एक प्रकार का डेटाबेस",
+      "उपयोगकर्ता के ब्राउज़र में संग्रहीत एक छोटी टेक्स्ट फ़ाइल",
+      "वेब विकास के लिए उपयोग की जाने वाली एक प्रोग्रामिंग भाषा",
+      "पासवर्ड एन्क्रिप्ट करने के लिए एक उपकरण"
+    ],
+    answer: "उपयोगकर्ता के ब्राउज़र में संग्रहीत एक छोटी टेक्स्ट फ़ाइल"
+  },
+  {
+    question: "कौन सी JavaScript प्रॉपर्टी कुकीज़ को बनाने, पढ़ने और हटाने के लिए उपयोग की जाती है?",
+    options: [
+      "window.cookie",
+      "document.cookie",
+      "browser.cookie",
+      "storage.cookie"
+    ],
+    answer: "document.cookie"
+  },
+  {
+    question: "वेबसाइट द्वारा कुकीज़ का उपयोग मुख्य रूप से किसलिए किया जाता है?",
+    options: [
+      "उपयोगकर्ता की गतिविधियों को ट्रैक करने और उन्हें व्यक्तिगत अनुभव देने के लिए",
+      "वेबसाइट पर ऑडियो और वीडियो चलाने के लिए",
+      "वेबसाइट को तेज़ी से लोड करने के लिए",
+      "वेबसाइट के डिज़ाइन को बदलने के लिए"
+    ],
+    answer: "उपयोगकर्ता की गतिविधियों को ट्रैक करने और उन्हें व्यक्तिगत अनुभव देने के लिए"
+  },
+  {
+    question: "कुकी को हटाने के लिए क्या करना आवश्यक है?",
+    options: [
+      "कुकी के नाम को बदलना",
+      "कुकी का मूल्य शून्य (\"\") सेट करना",
+      "कुकी की समाप्ति तिथि (expiry date) को भूतकाल में सेट करना",
+      "ब्राउज़र को बंद करना"
+    ],
+    answer: "कुकी की समाप्ति तिथि (expiry date) को भूतकाल में सेट करना"
+  },
+  {
+    question: "यदि ब्राउज़र में कुकीज़ बंद कर दी जाएं, तो क्या होगा?",
+    options: [
+      "वेबसाइट पर सभी इमेज गायब हो जाएंगी",
+      "उपयोगकर्ता की जानकारी वेबसाइट पर याद नहीं रखी जाएगी",
+      "वेबसाइट लोड होना बंद कर देगी",
+      "ब्राउज़र क्रैश हो जाएगा"
+    ],
+    answer: "उपयोगकर्ता की जानकारी वेबसाइट पर याद नहीं रखी जाएगी"
+  },
+  {
+    question: "कौन सा सही तरीका है एक कुकी को सेट करने का?",
+    options: [
+      'setCookie("username", "John", 7);',
+      'document.cookie = "username=John; expires=Thu, 01 Jan 2025 00:00:00 UTC; path=/";',
+      'cookie.set("username", "John");',
+      'browser.cookie = "username=John"'
+    ],
+    answer: 'document.cookie = "username=John; expires=Thu, 01 Jan 2025 00:00:00 UTC; path=/";'
+  },
+  {
+    question: "निम्नलिखित में से कौन सा कथन सही है?",
+    options: [
+      "एक नया कुकी सेट करने से पुरानी सभी कुकीज़ डिलीट हो जाती हैं।",
+      "कुकीज़ केवल सर्वर पर संग्रहीत होती हैं।",
+      "सभी कुकीज़ में समाप्ति तिथि होनी आवश्यक नहीं है।",
+      "कुकीज़ केवल पासवर्ड स्टोर करने के लिए उपयोग की जाती हैं।"
+    ],
+    answer: "सभी कुकीज़ में समाप्ति तिथि होनी आवश्यक नहीं है।"
+  },
+  {
+    question: "JavaScript में कुकी को पढ़ने के लिए कौन सा सही तरीका है?",
+    options: [
+      "document.getCookie(\"username\");",
+      "window.cookie(\"username\");",
+      "document.cookie;",
+      "cookie.read(\"username\");"
+    ],
+    answer: "document.cookie;"
+  },
+  {
+    question: "ब्राउज़र में कुकीज़ कितने समय तक स्टोर रहती हैं यदि समाप्ति तिथि सेट नहीं की गई हो?",
+    options: [
+      "हमेशा के लिए",
+      "जब तक उपयोगकर्ता मैन्युअली उन्हें डिलीट नहीं करता",
+      "जब तक ब्राउज़र बंद नहीं किया जाता",
+      "एक महीने तक"
+    ],
+    answer: "जब तक ब्राउज़र बंद नहीं किया जाता"
+  },
+  {
+    question: "कौन सा सही तरीका है कुकी को हटाने का?",
+    options: [
+      'document.cookie = "username=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";',
+      'delete document.cookie("username");',
+      'removeCookie("username");',
+      'document.cookie = "username=null";'
+    ],
+    answer: 'document.cookie = "username=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";'
+  },
+  {
+    question: "CSS का पूरा नाम क्या है?",
+    options: [
+      "Computer Style Sheets",
+      "Cascading Style Sheets",
+      "Creative Style Sheets",
+      "Colorful Style Sheets"
+    ],
+    answer: "Cascading Style Sheets"
+  },
+  {
+    question: "CSS का उपयोग किस लिए किया जाता है?",
+    options: [
+      "वेब पेज के कंटेंट को बदलने के लिए",
+      "वेब पेज को स्टाइल और डिज़ाइन करने के लिए",
+      "वेब पेज में डेटा स्टोर करने के लिए",
+      "वेब पेज पर जावास्क्रिप्ट को रन करने के लिए"
+    ],
+    answer: "वेब पेज को स्टाइल और डिज़ाइन करने के लिए"
+  },
+  {
+    question: "CSS को HTML में जोड़ने के कितने तरीके होते हैं?",
+    options: [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    answer: "3"
+  },
+  {
+    question: "कौन सा CSS का सही सिंटैक्स है?",
+    options: [
+      "{color: red;} p",
+      "p {color: red;}",
+      "p = {color: red;}",
+      "{p: color = red;}"
+    ],
+    answer: "p {color: red;}"
+  },
+  {
+    question: "किस CSS प्रॉपर्टी का उपयोग टेक्स्ट का रंग बदलने के लिए किया जाता है?",
+    options: [
+      "bgcolor",
+      "color",
+      "text-color",
+      "font-color"
+    ],
+    answer: "color"
+  },
+  {
+    question: "कौन सा विकल्प सही तरीके से बाहरी (External) CSS फाइल को HTML में लिंक करता है?",
+    options: [
+      '<link rel="stylesheet" type="text/css" href="style.css">',
+      "<stylesheet>style.css</stylesheet>",
+      "<css>style.css</css>",
+      '<style src="style.css">'
+    ],
+    answer: '<link rel="stylesheet" type="text/css" href="style.css">'
+  },
+  {
+    question: 'CSS में "id" सेलेक्टर को कैसे लिखा जाता है?',
+    options: [
+      ".idname",
+      "#idname",
+      "idname",
+      "*idname"
+    ],
+    answer: "#idname"
+  },
+  {
+    question: 'CSS में "class" सेलेक्टर को कैसे लिखा जाता है?',
+    options: [
+      ".classname",
+      "#classname",
+      "classname",
+      "*classname"
+    ],
+    answer: ".classname"
+  },
+  {
+    question: 'CSS में "hover" प्रभाव का क्या कार्य है?',
+    options: [
+      "किसी एलिमेंट पर क्लिक करने पर रंग बदलता है",
+      "एलिमेंट के आकार को छोटा करता है",
+      "माउस को एलिमेंट पर ले जाने पर प्रभाव डालता है",
+      "एलिमेंट को गायब कर देता है"
+    ],
+    answer: "माउस को एलिमेंट पर ले जाने पर प्रभाव डालता है"
+  },
+  {
+    question: 'CSS में कौन सा प्रॉपर्टी टेक्स्ट को बड़ा और छोटा करने के लिए उपयोग किया जाता है?',
+    options: [
+      "text-size",
+      "font-size",
+      "size",
+      "text-style"
+    ],
+    answer: "font-size"
+  },
+  {
+    question: 'CSS में position: absolute; का क्या प्रभाव होता है?',
+    options: [
+      "एलिमेंट को हमेशा अपने पैरेंट एलिमेंट के सापेक्ष रखता है",
+      "एलिमेंट को पेज पर स्थायी रूप से लॉक कर देता है",
+      "एलिमेंट को उसकी डिफ़ॉल्ट पोजीशन पर रखता है",
+      "एलिमेंट को पूरी तरह से गायब कर देता है"
+    ],
+    answer: "एलिमेंट को हमेशा अपने पैरेंट एलिमेंट के सापेक्ष रखता है"
+  },
+  {
+    question: 'CSS में "z-index" किसके लिए उपयोग किया जाता है?',
+    options: [
+      "एलिमेंट्स को रंग देने के लिए",
+      "एलिमेंट्स की ऊँचाई (height) सेट करने के लिए",
+      "एलिमेंट्स की प्राथमिकता तय करने के लिए (Stack Order)",
+      "एलिमेंट्स को छुपाने के लिए"
+    ],
+    answer: "एलिमेंट्स की प्राथमिकता तय करने के लिए (Stack Order)"
+  },
+  {
+    question: 'CSS में कौन सा प्रॉपर्टी पृष्ठभूमि का रंग बदलने के लिए उपयोग किया जाता है?',
+    options: [
+      "background-color",
+      "bgcolor",
+      "color-background",
+      "background-style"
+    ],
+    answer: "background-color"
+  },
+  {
+    question: 'CSS में "display: none;" का क्या प्रभाव होगा?',
+    options: [
+      "एलिमेंट को हटा देगा",
+      "एलिमेंट को छुपा देगा लेकिन उसकी जगह बनाए रखेगा",
+      "एलिमेंट को पूरा गायब कर देगा और उसकी जगह भी हटा देगा",
+      "एलिमेंट का रंग बदल देगा"
+    ],
+    answer: "एलिमेंट को पूरा गायब कर देगा और उसकी जगह भी हटा देगा"
+  },
+  {
+    question: 'CSS में कौन सा यूनिट "रूट" एलिमेंट के फोंट-साइज़ पर आधारित होती है?',
+    options: [
+      "px",
+      "em",
+      "rem",
+      "%"
+    ],
+    answer: "rem"
+  },
+  {
+    question: 'CSS में "opacity: 0;" का क्या प्रभाव होगा?',
+    options: [
+      "एलिमेंट को हटा देगा",
+      "एलिमेंट को पूरी तरह पारदर्शी बना देगा",
+      "एलिमेंट का रंग बदल देगा",
+      "एलिमेंट को छोटा कर देगा"
+    ],
+    answer: "एलिमेंट को पूरी तरह पारदर्शी बना देगा"
+  },
+   {
+    question: 'CSS में "flexbox" का उपयोग किसके लिए किया जाता है?',
+    options: [
+      "ग्रिड लेआउट बनाने के लिए",
+      "टेक्स्ट को सजाने के लिए",
+      "आइटम्स को एक लाइन में व्यवस्थित करने के लिए",
+      "वेबसाइट का बैकग्राउंड बदलने के लिए"
+    ],
+    answer: "आइटम्स को एक लाइन में व्यवस्थित करने के लिए"
+  },
+  {
+    question: 'CSS में कौन सा "Grid Layout" बनाने के लिए उपयोग किया जाता है?',
+    options: [
+      "display: flex;",
+      "display: grid;",
+      "display: inline;",
+      "display: block;"
+    ],
+    answer: "display: grid;"
+  },
+  {
+    question: 'CSS में "media queries" का उपयोग किसके लिए किया जाता है?',
+    options: [
+      "केवल इमेज को स्टाइल करने के लिए",
+      "वेब पेज को अलग-अलग डिवाइस स्क्रीन्स के लिए अनुकूल बनाने के लिए",
+      "ब्राउज़र में ऑडियो चलाने के लिए",
+      "वेब पेज पर एनिमेशन जोड़ने के लिए"
+    ],
+    answer: "वेब पेज को अलग-अलग डिवाइस स्क्रीन्स के लिए अनुकूल बनाने के लिए"
+  },
+  {
+    question: 'JavaScript में त्रुटियों को संभालने के लिए कौन सा कथन उपयोग किया जाता है?',
+    options: [
+      "try...catch",
+      "throw...catch",
+      "error...catch",
+      "catch...finally"
+    ],
+    answer: "try...catch"
+  },
+  {
+    question: 'JavaScript में कस्टम त्रुटि उत्पन्न करने के लिए कौन सा कथन प्रयोग किया जाता है?',
+    options: [
+      "throw",
+      "catch",
+      "finally",
+      "error"
+    ],
+    answer: "throw"
+  },
+  {
+    question: 'JavaScript में किस त्रुटि प्रकार का उपयोग तब किया जाता है जब किसी अपरिभाषित चर (undefined variable) को संदर्भित किया जाता है?',
+    options: [
+      "SyntaxError",
+      "ReferenceError",
+      "TypeError",
+      "URIError"
+    ],
+    answer: "ReferenceError"
+  },
+  {
+    question: 'कौन सा त्रुटि प्रकार तब आता है जब कोड में गलत सिंटैक्स (Syntax) लिखा जाता है?',
+    options: [
+      "SyntaxError",
+      "TypeError",
+      "ReferenceError",
+      "RangeError"
+    ],
+    answer: "SyntaxError"
+  },
+  {
+    question: 'try...catch ब्लॉक में "finally" का क्या कार्य है?',
+    options: [
+      "केवल तब निष्पादित होता है जब कोई त्रुटि हो",
+      "केवल तब निष्पादित होता है जब कोई त्रुटि न हो",
+      "try...catch के बाद हमेशा निष्पादित होता है",
+      "केवल तभी निष्पादित होता है जब कोई throw स्टेटमेंट हो"
+    ],
+    answer: "try...catch के बाद हमेशा निष्पादित होता है"
+  },
+  {
+    question: 'JavaScript में कौन-सी त्रुटि तब आती है जब कोई संख्यात्मक मान वैध सीमा (valid range) से बाहर हो?',
+    options: [
+      "TypeError",
+      "ReferenceError",
+      "RangeError",
+      "EvalError"
+    ],
+    answer: "RangeError"
+  },
+  {
+    question: "'decodeURI(\"%%%\")' को निष्पादित करने पर कौन सी त्रुटि उत्पन्न होगी?",
+    options: [
+      "ReferenceError",
+      "TypeError",
+      "URIError",
+      "SyntaxError"
+    ],
+    answer: "URIError"
+  },
+  {
+    question: 'कौन सा त्रुटि प्रकार तब आता है जब किसी फंक्शन को गलत प्रकार के डेटा के साथ कॉल किया जाता है?',
+    options: [
+      "SyntaxError",
+      "TypeError",
+      "ReferenceError",
+      "URIError"
+    ],
+    answer: "TypeError"
+  },
+  {
+    question: 'कौन-सा कथन सही है?',
+    options: [
+      "throw केवल predefined त्रुटियाँ ही उत्पन्न कर सकता है।",
+      "finally केवल तब निष्पादित होता है जब कोई त्रुटि हो।",
+      "catch ब्लॉक तभी निष्पादित होता है जब try ब्लॉक में त्रुटि हो।",
+      "JavaScript में त्रुटियों को अनदेखा किया जा सकता है।"
+    ],
+    answer: "catch ब्लॉक तभी निष्पादित होता है जब try ब्लॉक में त्रुटि हो।"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: "Explicit Congestion Notification (ECN) का क्या कार्य है?",
+    options: [
+      "नेटवर्क में डेटा एन्क्रिप्शन प्रदान करना",
+      "राउटर को Congestion संकेत (Marking) भेजने की अनुमति देना",
+      "डेटा पैकेट की हानि को बढ़ाना",
+      "केवल LAN नेटवर्क में कार्य करना"
+    ],
+    answer: "राउटर को Congestion संकेत (Marking) भेजने की अनुमति देना"
+  },
+  {
+    question: "RED (Random Early Detection) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "नेटवर्क बैंडविड्थ को सीमित करना",
+      "पैकेटों को ड्रॉप करके ट्रैफिक को कम करना",
+      "ट्रैफिक को तेज करना",
+      "केवल LAN नेटवर्क के लिए कार्य करना"
+    ],
+    answer: "पैकेटों को ड्रॉप करके ट्रैफिक को कम करना"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा Congestion Control तकनीक नहीं है?",
+    options: [
+      "Load Balancing",
+      "Multipath Routing",
+      "Packet Delay",
+      "Traffic Shaping"
+    ],
+    answer: "Packet Delay"
+  },
+  {
+    question: "TCP और UDP में मुख्य अंतर क्या है?",
+    options: [
+      "TCP विश्वसनीय (Reliable) और कनेक्शन ओरिएंटेड है, जबकि UDP अस्थिर (Unreliable) और कनेक्शनलेस है",
+      "UDP डेटा को सुरक्षित रूप से भेजता है, जबकि TCP नहीं",
+      "TCP केवल ब्रॉडकास्टिंग के लिए उपयोग होता है",
+      "UDP केवल LAN नेटवर्क में कार्य करता है"
+    ],
+    answer: "TCP विश्वसनीय (Reliable) और कनेक्शन ओरिएंटेड है, जबकि UDP अस्थिर (Unreliable) और कनेक्शनलेस है"
+  },
+  {
+    question: "Telnet का मुख्य उपयोग क्या है?",
+    options: [
+      "फ़ाइल ट्रांसफर",
+      "रिमोट डिवाइसेज़ को एक्सेस और प्रबंधित करना",
+      "वेब ब्राउज़िंग",
+      "डेटा एन्क्रिप्शन"
+    ],
+    answer: "रिमोट डिवाइसेज़ को एक्सेस और प्रबंधित करना"
+  },
+  {
+    question: "Telnet किस लेयर पर काम करता है?",
+    options: [
+      "नेटवर्क लेयर",
+      "ट्रांसपोर्ट लेयर",
+      "एप्लीकेशन लेयर",
+      "डेटा लिंक लेयर"
+    ],
+    answer: "एप्लीकेशन लेयर"
+  },
+   {
+    question: "Telnet का मुख्य नुकसान क्या है?",
+    options: [
+      "यह डेटा को एन्क्रिप्ट करके भेजता है",
+      "यह केवल LAN नेटवर्क में कार्य करता है",
+      "यह डेटा को प्लेन टेक्स्ट में भेजता है, जिससे यह असुरक्षित होता है",
+      "यह केवल वायरलेस नेटवर्क में उपयोग किया जाता है"
+    ],
+    answer: "यह डेटा को प्लेन टेक्स्ट में भेजता है, जिससे यह असुरक्षित होता है"
+  },
+  {
+    question: "FTP का पूरा नाम क्या है?",
+    options: [
+      "File Transmission Protocol",
+      "File Transfer Protocol",
+      "Fast Transfer Process",
+      "File Tracking Protocol"
+    ],
+    answer: "File Transfer Protocol"
+  },
+  {
+    question: "FTP किस मॉडल पर आधारित है?",
+    options: [
+      "P2P मॉडल",
+      "क्लाइंट-सर्वर मॉडल",
+      "रिंग टोपोलॉजी",
+      "हाइब्रिड मॉडल"
+    ],
+    answer: "क्लाइंट-सर्वर मॉडल"
+  },
+  {
+    question: "FTP में डेटा ट्रांसफर के लिए कितने कनेक्शन होते हैं?",
+    options: ["1", "2", "3", "4"],
+    answer: "2"
+  },
+  {
+    question: "FTP का कौन सा नुकसान है?",
+    options: [
+      "यह फ़ाइलों को एन्क्रिप्ट नहीं करता",
+      "यह बहुत धीमा होता है",
+      "यह केवल छोटे फ़ाइलों के लिए उपयुक्त है",
+      "इसमें कोई सुरक्षा नहीं होती"
+    ],
+    answer: "यह फ़ाइलों को एन्क्रिप्ट नहीं करता"
+  },
+  {
+    question: "ई-मेल किसका संक्षिप्त रूप है?",
+    options: [
+      "Electronic Mail",
+      "Easy Mail",
+      "Electronic Messaging",
+      "Ethernet Mail"
+    ],
+    answer: "Electronic Mail"
+  },
+  {
+    question: "ई-मेल का मुख्य लाभ क्या है?",
+    options: [
+      "धीमी संचार प्रणाली",
+      "केवल टेक्स्ट संदेश भेज सकते हैं",
+      "तेज़ और सुविधाजनक संचार",
+      "इसमें केवल स्थानीय नेटवर्क का उपयोग किया जाता है"
+    ],
+    answer: "तेज़ और सुविधाजनक संचार"
+  },
+  {
+    question: "ई-मेल में कौन से प्रोटोकॉल उपयोग किए जाते हैं?",
+    options: ["SMTP", "POP3", "IMAP", "उपरोक्त सभी"],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "DNS का पूरा नाम क्या है?",
+    options: [
+      "Domain Name Service",
+      "Domain Network System",
+      "Domain Name System",
+      "Data Name System"
+    ],
+    answer: "Domain Name System"
+  },
+  {
+    question: "DNS का उपयोग किसलिए किया जाता है?",
+    options: [
+      "IP पते को डोमेन नाम में बदलने के लिए",
+      "डेटा ट्रांसफर के लिए",
+      "नेटवर्क की स्पीड बढ़ाने के लिए",
+      "वेबपेज को स्टोर करने के लिए"
+    ],
+    answer: "IP पते को डोमेन नाम में बदलने के लिए"
+  },
+  {
+    question: "DNS में कौन सा सर्वर IP एड्रेस की जानकारी स्टोर करता है?",
+    options: [
+      "रूट DNS सर्वर",
+      "लोकल DNS सर्वर",
+      "ऑथोरिटेटिव DNS सर्वर",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "DNS का कौन सा नुकसान है?",
+    options: [
+      "इसमें वायरस फैल सकता है",
+      "यह नेटवर्क सुरक्षा के लिए खतरा हो सकता है",
+      "यह हमेशा तेज़ काम करता है",
+      "यह केवल IPv6 को सपोर्ट करता है"
+    ],
+    answer: "यह नेटवर्क सुरक्षा के लिए खतरा हो सकता है"
+  },
+  {
+    question: "मल्टीमीडिया एप्लिकेशन का मुख्य उद्देश्य क्या है?",
+    options: [
+      "केवल टेक्स्ट एडिटिंग",
+      "विभिन्न मीडिया स्वरूपों को एकीकृत करना और इंटरैक्टिव कंटेंट बनाना",
+      "केवल ऑडियो रिकॉर्डिंग",
+      "केवल वीडियो प्लेबैक"
+    ],
+    answer: "विभिन्न मीडिया स्वरूपों को एकीकृत करना और इंटरैक्टिव कंटेंट बनाना"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा एक मल्टीमीडिया एप्लिकेशन नहीं है?",
+    options: [
+      "वीडियो एडिटिंग सॉफ़्टवेयर",
+      "टेक्स्ट एडिटर",
+      "गेमिंग एप्लिकेशन",
+      "वर्चुअल रियलिटी"
+    ],
+    answer: "टेक्स्ट एडिटर"
+  },
+  {
+    question: "एडोब प्रीमियर प्रो और फ़ाइनल कट प्रो किस प्रकार के मल्टीमीडिया एप्लिकेशन हैं?",
+    options: [
+      "ऑडियो एडिटिंग सॉफ़्टवेयर",
+      "इमेज एडिटिंग सॉफ़्टवेयर",
+      "वीडियो एडिटिंग सॉफ़्टवेयर",
+      "वेब ब्राउज़र"
+    ],
+    answer: "वीडियो एडिटिंग सॉफ़्टवेयर"
+  },
+  {
+    question: "GIMP और Adobe Photoshop किसके उदाहरण हैं?",
+    options: [
+      "वीडियो एडिटिंग सॉफ़्टवेयर",
+      "इमेज एडिटिंग सॉफ़्टवेयर",
+      "ऑडियो एडिटिंग सॉफ़्टवेयर",
+      "प्रेजेंटेशन सॉफ़्टवेयर"
+    ],
+    answer: "इमेज एडिटिंग सॉफ़्टवेयर"
+  },
+  {
+    question: "प्रेजेंटेशन बनाने के लिए सबसे उपयुक्त सॉफ़्टवेयर कौन सा है?",
+    options: [
+      "Adobe Premiere Pro",
+      "Microsoft PowerPoint",
+      "VLC Media Player",
+      "Audacity"
+    ],
+    answer: "Microsoft PowerPoint"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा एक ऑडियो एडिटिंग सॉफ़्टवेयर है?",
+    options: [
+      "Audacity",
+      "Windows Media Player",
+      "VLC Player",
+      "PowerPoint"
+    ],
+    answer: "Audacity"
+  },
+  {
+    question: "वीडियो कॉन्फ्रेंसिंग के लिए सबसे ज्यादा उपयोग किया जाने वाला एप्लिकेशन कौन सा है?",
+    options: [
+      "Zoom",
+      "VLC Media Player",
+      "Adobe Photoshop",
+      "Microsoft Excel"
+    ],
+    answer: "Zoom"
+  },{
+    question: "गेमिंग एप्लिकेशन किस प्रकार के मल्टीमीडिया का उपयोग करते हैं?",
+    options: [
+      "केवल टेक्स्ट",
+      "केवल इमेज",
+      "केवल वीडियो",
+      "टेक्स्ट, ऑडियो, वीडियो, इमेज और एनिमेशन"
+    ],
+    answer: "टेक्स्ट, ऑडियो, वीडियो, इमेज और एनिमेशन"
+  },
+  {
+    question: "VR (Virtual Reality) और AR (Augmented Reality) का मुख्य उपयोग कहां किया जाता है?",
+    options: [
+      "टेक्स्ट एडिटिंग",
+      "डिजिटल गेमिंग, ट्रेनिंग और सिमुलेशन",
+      "वेब ब्राउज़िंग",
+      "डेटा एंट्री"
+    ],
+    answer: "डिजिटल गेमिंग, ट्रेनिंग और सिमुलेशन"
+  },
+  {
+    question: "मल्टीमीडिया एप्लिकेशन का उपयोग मुख्य रूप से किस क्षेत्र में किया जाता है?",
+    options: [
+      "केवल शिक्षा",
+      "केवल मनोरंजन",
+      "केवल संचार",
+      "शिक्षा, मनोरंजन, संचार और व्यवसाय"
+    ],
+    answer: "शिक्षा, मनोरंजन, संचार और व्यवसाय"
+  },
+
+  // Security, Monitoring & Control से संबंधित MCQs
+  {
+    question: "साइबर सुरक्षा (Cybersecurity) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "केवल नेटवर्क की निगरानी करना",
+      "कंप्यूटर सिस्टम और नेटवर्क को अनधिकृत पहुंच और हमलों से सुरक्षित रखना",
+      "केवल डेटा बैकअप लेना",
+      "केवल हार्डवेयर सुरक्षा प्रदान करना"
+    ],
+    answer: "कंप्यूटर सिस्टम और नेटवर्क को अनधिकृत पहुंच और हमलों से सुरक्षित रखना"
+  },
+  {
+    question: "नेटवर्क में अनधिकृत पहुंच को रोकने के लिए कौन सा उपाय सबसे प्रभावी है?",
+    options: [
+      "फायरवॉल",
+      "वर्ड प्रोसेसर",
+      "मीडिया प्लेयर",
+      "वेब ब्राउज़र"
+    ],
+    answer: "फायरवॉल"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा एक निगरानी (Monitoring) उपकरण है?",
+    options: [
+      "SIEM (Security Information and Event Management)",
+      "VLC Media Player",
+      "MS Word",
+      "Adobe Photoshop"
+    ],
+    answer: "SIEM (Security Information and Event Management)"
+  },
+  {
+    question: "डेटा एन्क्रिप्शन का मुख्य उद्देश्य क्या है?",
+    options: [
+      "डेटा को हटाना",
+      "डेटा को असुरक्षित बनाना",
+      "डेटा को सुरक्षित और गोपनीय बनाना",
+      "डेटा को अनधिकृत उपयोगकर्ताओं के लिए आसानी से उपलब्ध कराना"
+    ],
+    answer: "डेटा को सुरक्षित और गोपनीय बनाना"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा एक्सेस कंट्रोल का उदाहरण है?",
+    options: [
+      "पासवर्ड और मल्टी-फैक्टर ऑथेंटिकेशन",
+      "कंप्यूटर का फॉर्मेट करना",
+      "ईमेल भेजना",
+      "वॉलपेपर बदलना"
+    ],
+    answer: "पासवर्ड और मल्टी-फैक्टर ऑथेंटिकेशन"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा नेटवर्क निगरानी उपकरण (Network Monitoring Tool) है?",
+    options: [
+      "Wireshark",
+      "MS Excel",
+      "Google Chrome",
+      "Notepad"
+    ],
+    answer: "Wireshark"
+  },
+  {
+    question: "सुरक्षा निगरानी (Security Monitoring) में कौन सा उपकरण उपयोग किया जाता है?",
+    options: [
+      "SIEM सिस्टम",
+      "VLC Media Player",
+      "MS Paint",
+      "Windows Task Manager"
+    ],
+    answer: "SIEM सिस्टम"
+  },
+  {
+    question: "कौन सा नियंत्रण (Control) तंत्र सुनिश्चित करता है कि केवल अधिकृत उपयोगकर्ता ही सिस्टम तक पहुंच सकते हैं?",
+    options: [
+      "ऑथेंटिकेशन और ऑथराइजेशन",
+      "मीडिया प्लेयर",
+      "कैलकुलेटर",
+      "टेक्स्ट एडिटर"
+    ],
+    answer: "ऑथेंटिकेशन और ऑथराइजेशन"
+  },
+  {
+    question: "डेटा हानि से बचाव के लिए कौन सा उपाय सबसे प्रभावी है?",
+    options: [
+      "रेगुलर बैकअप लेना",
+      "कंप्यूटर को बंद करना",
+      "इंटरनेट कनेक्शन बंद करना",
+      "अनधिकृत सॉफ़्टवेयर इंस्टॉल करना"
+    ],
+    answer: "रेगुलर बैकअप लेना"
+  },
+  {
+    question: "नेटवर्क में अनधिकृत गतिविधियों का पता लगाने के लिए कौन सी तकनीक उपयोग की जाती है?",
+    options: [
+      "Intrusion Detection System (IDS)",
+      "Notepad",
+      "Adobe Reader",
+      "MS Word"
+    ],
+    answer: "Intrusion Detection System (IDS)"
+  },
+
+  // SNMP V2, SNMP V3, RMON & RMON2 से संबंधित MCQs
+  {
+    question: "SNMP का पूरा नाम क्या है?",
+    options: [
+      "Simple Network Monitoring Protocol",
+      "Simple Network Management Protocol",
+      "Secured Network Management Protocol",
+      "Systematic Network Management Protocol"
+    ],
+    answer: "Simple Network Management Protocol"
+  },
+  {
+    question: "SNMP का उपयोग किस लिए किया जाता है?",
+    options: [
+      "नेटवर्क डिवाइस की निगरानी और प्रबंधन के लिए",
+      "कंप्यूटर ग्राफिक्स डिजाइन के लिए",
+      "डेटा एन्क्रिप्शन के लिए",
+      "केवल नेटवर्क सिक्योरिटी के लिए"
+    ],
+    answer: "नेटवर्क डिवाइस की निगरानी और प्रबंधन के लिए"
+  },
+  {
+    question: "SNMPv2 में कौन सा नया ऑपरेशन जोड़ा गया था?",
+    options: [
+      "GETNEXT",
+      "GETBULK",
+      "SETREQUEST",
+      "TRAP"
+    ],
+    answer: "GETBULK"
+  },
+  {
+    question: "SNMPv3 में सुरक्षा सुधार के लिए कौन सा मॉडल शामिल किया गया है?",
+    options: [
+      "Message Processing Model",
+      "User-Based Security Model",
+      "View-Based Access Control Model",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "SNMPv3 में कौन सा नया नोटिफिकेशन टाइप जोड़ा गया था?",
+    options: [
+      "ALERT",
+      "INFORM",
+      "NOTIFY",
+      "RESPONSE"
+    ],
+    answer: "INFORM"
+  },
+  {
+    question: "SNMP में कौन से पोर्ट का उपयोग किया जाता है?",
+    options: [
+      "80 और 443",
+      "161 और 162",
+      "22 और 23",
+      "25 और 110"
+    ],
+    answer: "161 और 162"
+  },{
+    question: "RMON का पूरा नाम क्या है?",
+    options: [
+      "Remote Network Monitoring",
+      "Real-time Network Management",
+      "Reliable Network Monitoring",
+      "Remote Node Management"
+    ],
+    answer: "Remote Network Monitoring"
+  },
+  {
+    question: "RMON1 किस पर ध्यान केंद्रित करता है?",
+    options: [
+      "एप्लिकेशन लेयर निगरानी",
+      "फिजिकल और डेटा लिंक लेयर निगरानी",
+      "क्लाउड स्टोरेज",
+      "वेब सर्वर मॉनिटरिंग"
+    ],
+    answer: "फिजिकल और डेटा लिंक लेयर निगरानी"
+  },
+  {
+    question: "SNMPv3 में कौन सा मुख्य सुरक्षा फीचर जोड़ा गया था?",
+    options: [
+      "डेटा एनक्रिप्शन और प्रमाणिकता",
+      "केवल लॉगिंग सिस्टम",
+      "केवल एड्रेस ट्रैकिंग",
+      "केवल पासवर्ड प्रोटेक्शन"
+    ],
+    answer: "डेटा एनक्रिप्शन और प्रमाणिकता"
+  },
+  {
+    question: "SNMP में TRAP का क्या कार्य है?",
+    options: [
+      "नेटवर्क पर होने वाली महत्वपूर्ण घटनाओं की सूचना भेजना",
+      "डेटा को एन्क्रिप्ट करना",
+      "केवल नेटवर्क ट्रैफिक को बढ़ाना",
+      "फायरवॉल सेटिंग्स को बदलना"
+    ],
+    answer: "नेटवर्क पर होने वाली महत्वपूर्ण घटनाओं की सूचना भेजना"
+  },
+
+  // Wireless Communication, Channel Access, and Standards से संबंधित MCQs
+  {
+    question: "वायरलेस चैनल क्या होता है?",
+    options: [
+      "एक फाइबर ऑप्टिक केबल",
+      "सिग्नल के ट्रांसमिशन का माध्यम",
+      "केवल एक मोबाइल टॉवर",
+      "केवल एक वाई-फाई राउटर"
+    ],
+    answer: "सिग्नल के ट्रांसमिशन का माध्यम"
+  },
+  {
+    question: "वायरलेस संचार में कौन से कारक सिग्नल प्रसार को प्रभावित करते हैं?",
+    options: [
+      "दूरी और बाधाएँ",
+      "पर्यावरणीय परिस्थितियाँ",
+      "इंटरफेरेंस",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

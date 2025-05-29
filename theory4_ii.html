@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: "Bootstrap में रेस्पॉन्सिव डिजाइन का क्या मतलब है?",
+    options: [
+      "वेबसाइट केवल मोबाइल पर सही दिखती है",
+      "वेबसाइट हर स्क्रीन साइज़ पर अपने आप एडजस्ट होती है",
+      "वेबसाइट केवल डेस्कटॉप पर काम करती है",
+      "वेबसाइट को मैन्युअली एडजस्ट करना पड़ता है"
+    ],
+    answer: "वेबसाइट हर स्क्रीन साइज़ पर अपने आप एडजस्ट होती है"
+  },
+    {
+    question: "Bootstrap में .text-center क्लास का क्या कार्य है?",
+    options: [
+      "टेक्स्ट को बाएँ संरेखित करना",
+      "टेक्स्ट को दाएँ संरेखित करना",
+      "टेक्स्ट को केंद्र में संरेखित करना",
+      "टेक्स्ट को छुपाना"
+    ],
+    answer: "टेक्स्ट को केंद्र में संरेखित करना"
+  },
+  {
+    question: "Bootstrap में फ्लोट क्लासेस कौन-कौन सी हैं?",
+    options: [
+      ".float-up और .float-down",
+      ".float-left और .float-right",
+      ".float-center",
+      ".float-top और .float-bottom"
+    ],
+    answer: ".float-left और .float-right"
+  },
+  {
+    question: "Bootstrap के Flexbox का उपयोग किस लिए होता है?",
+    options: [
+      "फॉर्म डिजाइन करने के लिए",
+      "एलिमेंट्स को फ्लोट करने के लिए",
+      "फ्लेक्सिबल और रेस्पॉन्सिव लेआउट बनाने के लिए",
+      "डेटाबेस कनेक्शन के लिए"
+    ],
+    answer: "फ्लेक्सिबल और रेस्पॉन्सिव लेआउट बनाने के लिए"
+  },
+  {
+    question: "Bootstrap में .shadow-lg क्लास का क्या प्रभाव होता है?",
+    options: [
+      "बड़े साइज का बॉर्डर जोड़ती है",
+      "बड़े साइज का शैडो (छाया) जोड़ती है",
+      "एलिमेंट को छुपाती है",
+      "एलिमेंट को स्थिर करती है"
+    ],
+    answer: "बड़े साइज का शैडो (छाया) जोड़ती है"
+  },
+  {
+    question: "Bootstrap में visibility कंट्रोल करने के लिए कौन-सी क्लासेस उपयोग होती हैं?",
+    options: [
+      ".show और .hide",
+      ".visible-* और .invisible-*",
+      ".open और .close",
+      ".active और .inactive"
+    ],
+    answer: ".visible-* और .invisible-*"
+  },
+  {
+    question: "Bootstrap में .position-fixed क्लास का उपयोग कहाँ होता है?",
+    options: [
+      "एलिमेंट को पेज के स्क्रॉल के साथ स्थिर रखने के लिए",
+      "एलिमेंट को छुपाने के लिए",
+      "एलिमेंट को फ्लोट करने के लिए",
+      "एलिमेंट को डिफ़ॉल्ट स्थिति में रखने के लिए"
+    ],
+    answer: "एलिमेंट को पेज के स्क्रॉल के साथ स्थिर रखने के लिए"
+  },
+  {
+    question: "Bootstrap का कौन-सा वर्शन मोबाइल-फर्स्ट अप्रोच को पेश करता है?",
+    options: ["Bootstrap 2", "Bootstrap 3", "Bootstrap 4", "Bootstrap 5"],
+    answer: "Bootstrap 3"
+  },
+  {
+    question: "PHP में सबसे सरल conditional statement कौन सा है?",
+    options: ["switch", "if", "for", "foreach"],
+    answer: "if"
+  },
+  {
+    question: "if...else statement का उपयोग कब किया जाता है?",
+    options: [
+      "केवल एक condition के लिए",
+      "दो conditions में से किसी एक के लिए",
+      "एक से अधिक loop के लिए",
+      "switch statement के विकल्प के लिए"
+    ],
+    answer: "दो conditions में से किसी एक के लिए"
+  },
+  {
+    question: "PHP में switch statement का उपयोग कब किया जाता है?",
+    options: [
+      "दो conditions के लिए",
+      "एक condition के लिए",
+      "कई possible values के लिए जो एक variable में हो",
+      "loop के लिए"
+    ],
+    answer: "कई possible values के लिए जो एक variable में हो"
+  },
+   {
+    question: "PHP में break statement का क्या काम है?",
+    options: [
+      "loop को continue करना",
+      "loop को रोकना और बाहर निकलना",
+      "condition check करना",
+      "code को comment करना"
+    ],
+    answer: "loop को रोकना और बाहर निकलना"
+  },
+  {
+    question: "PHP में while loop कब तक चलता है?",
+    options: [
+      "जब तक condition false हो",
+      "जब तक condition true हो",
+      "निश्चित संख्या बार",
+      "एक बार भी नहीं चलता"
+    ],
+    answer: "जब तक condition true हो"
+  },
+  {
+    question: "do...while loop और while loop में क्या फर्क है?",
+    options: [
+      "do...while loop कम चलता है",
+      "do...while loop condition के बाद चलता है, while loop condition से पहले",
+      "while loop condition के बाद चलता है, do...while से पहले",
+      "दोनों एक जैसे हैं"
+    ],
+    answer: "do...while loop condition के बाद चलता है, while loop condition से पहले"
+  },
+  {
+    question: "for loop के तीन मुख्य भाग कौन से हैं?",
+    options: [
+      "initialization, condition, increment/decrement",
+      "start, stop, continue",
+      "input, output, processing",
+      "none of the above"
+    ],
+    answer: "initialization, condition, increment/decrement"
+  },
+  {
+    question: "foreach loop का उपयोग किसके लिए किया जाता है?",
+    options: [
+      "single variable के लिए",
+      "array के हर element पर काम करने के लिए",
+      "loops को रोकने के लिए",
+      "condition check के लिए"
+    ],
+    answer: "array के हर element पर काम करने के लिए"
+  },
+  {
+    question: "continue statement का क्या काम है?",
+    options: [
+      "loop को पूरा रोकना",
+      "current iteration छोड़कर अगली iteration पर जाना",
+      "condition check करना",
+      "code को execute करना"
+    ],
+    answer: "current iteration छोड़कर अगली iteration पर जाना"
+  },
+  {
+    question: "अगर switch statement में break statement नहीं होगा तो क्या होगा?",
+    options: [
+      "code error देगा",
+      "केवल पहला case execute होगा",
+      "matching case के बाद के सारे cases भी execute होंगे",
+      "switch block skip हो जाएगा"
+    ],
+    answer: "matching case के बाद के सारे cases भी execute होंगे"
+  },
+  {
+    question: "PHP में फ़ंक्शन क्या है?",
+    options: [
+      "एक प्रकार का डेटा",
+      "एक HTML टैग",
+      "एक कोड ब्लॉक जो एक विशिष्ट कार्य करता है",
+      "एक प्रकार का कमेंट"
+    ],
+    answer: "एक कोड ब्लॉक जो एक विशिष्ट कार्य करता है"
+  },
+  {
+    question: "PHP में एक फ़ंक्शन को परिभाषित करने के लिए कौन-सा कीवर्ड उपयोग होता है?",
+    options: [
+      "define",
+      "function",
+      "declare",
+      "set"
+    ],
+    answer: "function"
+  },
+  {
+    question: "नीचे दिए गए विकल्पों में से कौन-सी विशेषता PHP फ़ंक्शनों की नहीं है?",
+    options: [
+      "कोड को मॉड्यूलर बनाना",
+      "कोड की पुन: उपयोगिता",
+      "केवल एक बार चलना",
+      "मेंटेनेंस को आसान बनाना"
+    ],
+    answer: "केवल एक बार चलना"
+  },
+  {
+    question: `नीचे दिए गए फ़ंक्शन को कॉल करने का सही तरीका क्या है?\nfunction greet() {\n  echo "Hello!";\n}`,
+    options: [
+      "call greet();",
+      "greet;",
+      "echo greet();",
+      "greet();"
+    ],
+    answer: "greet();"
+  },
+  {
+    question: "PHP में फ़ंक्शन नाम कैसा होना चाहिए?",
+    options: [
+      "नंबर से शुरू हो सकता है",
+      "किसी भी विशेष कैरेक्टर से शुरू हो सकता है",
+      "अक्षर या अंडरस्कोर (_) से शुरू होना चाहिए",
+      "डॉट (.) से शुरू हो सकता है"
+    ],
+    answer: "अक्षर या अंडरस्कोर (_) से शुरू होना चाहिए"
+  },
+    {
+    question: "नीचे दिए गए उदाहरण में कितनी बार setHeight() function कॉल हुआ है?\n\nsetHeight(350);\nsetHeight();\nsetHeight(135);\nsetHeight(80);",
+    options: [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    answer: "4"
+  },
+  {
+    question: "PHP में default parameter का उपयोग कब किया जाता है?",
+    options: [
+      "जब सभी पैरामीटर अनिवार्य हों",
+      "जब कोई पैरामीटर ना दिया गया हो",
+      "जब पैरामीटर का टाइप बदलना हो",
+      "कभी नहीं"
+    ],
+    answer: "जब कोई पैरामीटर ना दिया गया हो"
+  },
+  {
+    question: "नीचे दिए गए कोड में return value क्या होगी?\n\nfunction multiply($a, $b = 2) {\n  return $a * $b;\n}\n$result = multiply(5);",
+    options: [
+      "7",
+      "10",
+      "5",
+      "Error"
+    ],
+    answer: "10"
+  },
+  {
+    question: "Variadic functions क्या करती हैं?",
+    options: [
+      "केवल एक पैरामीटर लेती हैं",
+      "error देती हैं",
+      "अनिश्चित संख्या में arguments ले सकती हैं",
+      "सिर्फ string पैरामीटर लेती हैं"
+    ],
+    answer: "अनिश्चित संख्या में arguments ले सकती हैं"
+  },
+  {
+    question: "PHP में किसी फ़ंक्शन को वैल्यू लौटाने के लिए किस स्टेटमेंट का उपयोग होता है?",
+    options: [
+      "echo",
+      "print",
+      "return",
+      "result"
+    ],
+    answer: "return"
+  },
+  {
+    question: "PHP में कौन-सी function built-in function नहीं है?",
+    options: [
+      "strlen()",
+      "str_replace()",
+      "calculateSum()",
+      "count()"
+    ],
+    answer: "calculateSum()"
+  },
+  {
+    question: "नीचे दिए गए कोड का आउटपुट क्या होगा?\n\nfunction sum($x, $y) {\n  return $x + $y;\n}\necho sum(2, 4);",
+    options: [
+      "24",
+      "6",
+      "2 + 4",
+      "sum(2, 4)"
+    ],
+    answer: "6"
+  },
+  {
+    question: "एक यूज़र डिफाइंड फ़ंक्शन कब execute होता है?",
+    options: [
+      "जब पेज लोड होता है",
+      "जब explicitly call किया जाता है",
+      "ऑटोमेटिकली",
+      "रनटाइम error आने पर"
+    ],
+    answer: "जब explicitly call किया जाता है"
+  },
+  {
+    question: "Functions में Scope का क्या मतलब है?",
+    options: [
+      "Global variables सब जगह access हो सकते हैं",
+      "Function के अंदर की variables बाहर से access किए जा सकते हैं",
+      "Function के variables सिर्फ उसी के अंदर access होते हैं",
+      "कोई Scope नहीं होता"
+    ],
+    answer: "Function के variables सिर्फ उसी के अंदर access होते हैं"
+  },
+  {
+    question: "नीचे दिए गए कोड में कितने पैरामीटर हैं?\n\nfunction addNumbers($a, $b) {\n  return $a + $b;\n}",
+    options: [
+      "0",
+      "1",
+      "2",
+      "अनगिनत"
+    ],
+    answer: "2"
+  },
+  {
+    question: "PHP में MySQL डेटाबेस से कनेक्शन स्थापित करने के लिए कौन-सा फ़ंक्शन उपयोग किया जाता है?",
+    options: [
+      "mysql_connect()",
+      "mysqli_connect()",
+      "connect_db()",
+      "open_mysql_connection()"
+    ],
+    answer: "mysqli_connect()"
+  },
+  {
+    question: "किसी MySQL टेबल में PRIMARY KEY का क्या कार्य होता है?",
+    options: [
+      "कॉलम में null वैल्यू की अनुमति देना",
+      "टेबल में पंक्तियों की विशिष्ट पहचान करना",
+      "एक foreign key बनाना",
+      "अपने आप टाइमस्टैम्प बनाना"
+    ],
+    answer: "टेबल में पंक्तियों की विशिष्ट पहचान करना"
+  },
+  {
+    question: "किसी टेबल में नया रिकॉर्ड जोड़ने के लिए कौन-सा SQL स्टेटमेंट उपयोग किया जाता है?",
+    options: [
+      "ADD RECORD",
+      "INSERT INTO",
+      "UPDATE TABLE",
+      "NEW ENTRY"
+    ],
+    answer: "INSERT INTO"
+  },
+  {
+    question: "UPDATE या DELETE क्वेरी में कौन-सा क्लॉज सभी रिकॉर्ड्स को प्रभावित करने से रोकता है?",
+    options: [
+      "ORDER BY",
+      "LIMIT",
+      "WHERE",
+      "GROUP BY"
+    ],
+    answer: "WHERE"
+  },
+  {
+    question: "MySQL कॉलम में AUTO_INCREMENT क्या करता है?",
+    options: [
+      "हर नए रिकॉर्ड के लिए वैल्यू अपने आप बढ़ाता है",
+      "केवल यूनिक वैल्यू को स्टोर करता है",
+      "डिफ़ॉल्ट वैल्यू सेट करता है",
+      "एक foreign key बनाता है"
+    ],
+    answer: "हर नए रिकॉर्ड के लिए वैल्यू अपने आप बढ़ाता है"
+  },
+  {
+    question: "SQL क्वेरी को चलाने के लिए PHP MySQLi में कौन-सा method उपयोग होता है?",
+    options: [
+      "execute()",
+      "query()",
+      "runQuery()",
+      "mysqli_exec()"
+    ],
+    answer: "query()"
+  },
+  {
+    question: "किसी टेबल से सभी कॉलम चुनने के लिए कौन-सा SQL कमांड सही है?",
+    options: [
+      "SELECT ALL",
+      "SELECT *",
+      "SELECT COLUMNS",
+      "GET ALL"
+    ],
+    answer: "SELECT *"
+  },
+  {
+    question: "PHP MySQLi (object-oriented) में कनेक्शन बनाने का सही तरीका क्या है?",
+    options: [
+      "$conn = mysql($host, $user, $pass, $db);",
+      "$conn = new mysqli($host, $user, $pass, $db);",
+      "$conn = connect($host, $user, $pass, $db);",
+      "$conn = mysqli_connect();"
+    ],
+    answer: "$conn = new mysqli($host, $user, $pass, $db);"
+  },
+  {
+    question: "यदि UPDATE क्वेरी में WHERE क्लॉज नहीं दिया जाए तो क्या होगा?",
+    options: [
+      "केवल पहली पंक्ति अपडेट होगी",
+      "टेबल के सभी रिकॉर्ड्स अपडेट हो जाएंगे",
+      "एक एरर आएगा",
+      "क्वेरी इग्नोर कर दी जाएगी"
+    ],
+    answer: "टेबल के सभी रिकॉर्ड्स अपडेट हो जाएंगे"
+  },
+   {
+    question: "टेबल की सारी पंक्तियाँ हटाने के लिए पर उसका स्ट्रक्चर बनाए रखने के लिए कौन-सा SQL कमांड उपयोग होता है?",
+    options: [
+      "DELETE * FROM table",
+      "REMOVE ALL FROM table",
+      "TRUNCATE TABLE table_name",
+      "DROP TABLE table_name"
+    ],
+    answer: "TRUNCATE TABLE table_name"
+  },
+  {
+    question: "पासवर्ड को सुरक्षित तरीके से स्टोर करने के लिए PHP में कौन-सा फ़ंक्शन उपयोग किया जाता है?",
+    options: [
+      "md5()",
+      "sha1()",
+      "password_hash()",
+      "encrypt_password()"
+    ],
+    answer: "password_hash()"
+  },
+  {
+    question: "password_hash() फंक्शन किसका उपयोग करता है डिफ़ॉल्ट रूप से पासवर्ड को हैश करने के लिए?",
+    options: [
+      "SHA1",
+      "SHA256",
+      "bcrypt",
+      "MD5"
+    ],
+    answer: "bcrypt"
+  },
+  {
+    question: "password_verify() फंक्शन का उपयोग किसके लिए किया जाता है?",
+    options: [
+      "पासवर्ड को डेटाबेस में सेव करने के लिए",
+      "पासवर्ड को बदलने के लिए",
+      "पासवर्ड को डिक्रिप्ट करने के लिए",
+      "उपयोगकर्ता द्वारा दर्ज पासवर्ड को हैश से मिलाने के लिए"
+    ],
+    answer: "उपयोगकर्ता द्वारा दर्ज पासवर्ड को हैश से मिलाने के लिए"
+  },
+  {
+    question: "पासवर्ड को हैश करने का मुख्य उद्देश्य क्या है?",
+    options: [
+      "पासवर्ड छोटा करना",
+      "पासवर्ड को human-readable बनाना",
+      "पासवर्ड को सुरक्षित करना",
+      "पासवर्ड को आसान बनाना"
+    ],
+    answer: "पासवर्ड को सुरक्षित करना"
+  },
+  {
+    question: "यदि password_verify() फंक्शन true रिटर्न करता है, तो इसका अर्थ है —",
+    options: [
+      "पासवर्ड गलत है",
+      "उपयोगकर्ता का खाता सक्रिय नहीं है",
+      "पासवर्ड सही है",
+      "पासवर्ड expire हो गया है"
+    ],
+    answer: "पासवर्ड सही है"
+  },
+  {
+    question: "password_hash() से प्राप्त हैश वैल्यू को कहाँ स्टोर किया जाता है?",
+    options: [
+      "सेशन में",
+      "कुकी में",
+      "डेटाबेस में",
+      "URL में"
+    ],
+    answer: "डेटाबेस में"
+  },
+  {
+    question: "SHA का फुल फॉर्म क्या है?",
+    options: [
+      "Secure Host Algorithm",
+      "Safe Hash Algorithm",
+      "Secure Hash Algorithm",
+      "Secret Hacking Algorithm"
+    ],
+    answer: "Secure Hash Algorithm"
+  }
+];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>

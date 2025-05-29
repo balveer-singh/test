@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .quiz-container {
+    background: white;
+    max-width: 600px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    padding: 30px 40px;
+    box-sizing: border-box;
+    margin-top: 30px;
+  }
+  .timer {
+    font-size: 18px;
+    color: #444;
+    text-align: right;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+  .question {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    min-height: 80px;
+    line-height: 1.3;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .option-btn {
+    background-color: #f5f7fa;
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    color: #555;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+  }
+  .option-btn:hover:not(:disabled) {
+    background-color: #e0e7ff;
+    border-color: #5964ff;
+    color: #2a2e8f;
+  }
+  .option-btn.selected {
+    background-color: #5964ff;
+    border-color: #364fc7;
+    color: white;
+    font-weight: 600;
+  }
+  .option-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .navigation {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .navigation button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background-color: #5964ff;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(89,100,255,0.5);
+    transition: background-color 0.3s ease;
+    user-select: none;
+  }
+  .navigation button:hover:not(:disabled) {
+    background-color: #2a2e8f;
+    box-shadow: 0 6px 18px rgba(42,46,143,0.7);
+  }
+  .navigation button:disabled {
+    background-color: #ccc;
+    color: #777;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .result {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #364fc7;
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .question-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px auto;
+    justify-content: center;
+  }
+  .question-indicator {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: white;
+    color: black;
+    font-weight: bold;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .question-indicator.answered {
+    background-color: green;
+    color: white;
+    border: 2px solid darkgreen;
+  }
+  .question-indicator.skipped {
+    background-color: #f7c948;
+    color: black;
+    border: 2px solid #f7c948;
+  }
+  .question-indicator.active {
+    border: 3px solid blue;
+  }
+  @media (max-width: 480px) {
+    .quiz-container {
+      padding: 25px 20px;
+      margin-top: 20px;
+    }
+    .question {
+      font-size: 1.25rem;
+      min-height: 60px;
+    }
+    .option-btn {
+      font-size: 1rem;
+      padding: 10px 16px;
+    }
+    .navigation button {
+      font-size: 1rem;
+      padding: 12px 0;
+    }
+    .timer {
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" role="main" aria-label="Quiz container">
+  <div class="timer" id="timer" aria-live="polite">Time Remaining: 50:00</div>
+  <div class="question-tracker" id="questionTracker" aria-label="Question progress"></div>
+
+  <div id="quiz">
+    <div class="question" id="question" aria-live="polite">Question text will appear here</div>
+    <div class="options" id="options" role="list"></div>
+    <div class="navigation" role="navigation" aria-label="Quiz navigation">
+      <button id="prevBtn" onclick="prevQuestion()" aria-label="Previous Question">Previous</button>
+      <button id="nextBtn" onclick="nextQuestion()" aria-label="Next Question">Next</button>
+      <button id="skipBtn" aria-label="Skip Question">Skip</button>
+      <button id="submitBtn" onclick="endQuiz()" style="display:none;" aria-label="Submit Quiz">Submit</button>
+    </div>
+    <div class="result" id="result" aria-live="polite"></div>
+  </div>
+</div>
+
+  <script>
+  const quizData = [
+  {
+    question: "कौशल हस्तांतरण की सात चरणीय विधि का पहला चरण क्या है?",
+    options: [
+      "अभ्यास (Practice)",
+      "सीखने वालों को कार्य करना सिखाना (Show the learners how to do it)",
+      "जटिल भागों को अलग से करना (Imitation)",
+      "पूरे कार्य को स्वंय करने देना (Refinement)"
+    ],
+    answer: "सीखने वालों को कार्य करना सिखाना (Show the learners how to do it)"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा चरण “Refinement” को दर्शाता है?",
+    options: [
+      "सीखने वालों को जटिल भाग अलग-अलग करने देना",
+      "पूरे कार्य को करने देना, लेकिन निरीक्षण करना",
+      "अभ्यास के लिए उन्हें कार्य पर लगा देना",
+      "केवल कुंजी बिंदुओं को समझाना"
+    ],
+    answer: "पूरे कार्य को करने देना, लेकिन निरीक्षण करना"
+  },
+  {
+    question: "कौशल सीखने के तीन चरण कौन-कौन से हैं?",
+    options: [
+      "अधिग्रहण, प्रतिधारण, पुनःस्मरण",
+      "परिकल्पना, विकास, समापन",
+      "संज्ञानात्मक, स्थिरीकरण, स्वायत्तता",
+      "अवलोकन, अनुकरण, पुनरावृत्ति"
+    ],
+    answer: "संज्ञानात्मक, स्थिरीकरण, स्वायत्तता (Cognitive, Fixation, Autonomous)"
+  },
+  {
+    question: "संज्ञानात्मक चरण (Cognitive Phase) में प्रशिक्षक क्या करता है?",
+    options: [
+      "प्रशिक्षु को अभ्यास के लिए छोड़ देता है",
+      "कौशल को कैसे और क्यों करना है यह बताता है",
+      "प्रशिक्षु को गलती करने के लिए प्रेरित करता है",
+      "कौशल में पहले ही त्रुटि दूर कर देता है"
+    ],
+    answer: "कौशल को कैसे और क्यों करना है यह बताता है"
+  },
+  {
+    question: "स्थिरीकरण चरण (Fixation Phase) में प्रशिक्षु किस पर ध्यान देता है?",
+    options: [
+      "कार्य को स्वतंत्र रूप से करना",
+      "पूर्ण गलतियों के साथ प्रयास करना",
+      "गलतियों को सुधारने और सही पैटर्न स्थापित करने पर",
+      "केवल पर्यवेक्षण पर ध्यान देना"
+    ],
+    answer: "गलतियों को सुधारने और सही पैटर्न स्थापित करने पर"
+  },
+  {
+    question: "स्वायत्त चरण (Autonomous Phase) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "प्रशिक्षु को स्वतंत्र रूप से कौशल का प्रदर्शन करने देना",
+      "प्रशिक्षु को केवल सैद्धांतिक ज्ञान देना",
+      "प्रशिक्षु को अभ्यास बंद कर देना",
+      "प्रशिक्षु को त्रुटि करने के लिए प्रेरित करना"
+    ],
+    answer: "प्रशिक्षु को स्वतंत्र रूप से कौशल का प्रदर्शन करने देना"
+  },
+  {
+    question: "कौशल अधिग्रहण की पहली अवस्था क्या है?",
+    options: [
+      "अनुकरण (Imitation)",
+      "अवलोकन (Observation)",
+      "पुनरावृत्ति (Repetition)",
+      "भागीदारी (Participation)"
+    ],
+    answer: "अवलोकन (Observation)"
+  },
+  {
+    question: "भागीदारी (Participation) चरण का क्या उद्देश्य है?",
+    options: [
+      "प्रशिक्षु को स्वतंत्र रूप से कार्य सौंपना",
+      "प्रशिक्षु को उपकरण और कच्चे माल को छूने और महसूस करने की अनुमति देना",
+      "प्रशिक्षु को केवल निरीक्षण करने देना",
+      "प्रशिक्षु को अभ्यास बंद कर देना"
+    ],
+    answer: "प्रशिक्षु को उपकरण और कच्चे माल को छूने और महसूस करने की अनुमति देना"
+  },
+  {
+    question: `"Imitation" चरण में प्रशिक्षु क्या करता है?`,
+    options: [
+      "प्रशिक्षक की गतिविधियों की नकल करता है",
+      "कार्य को पूरी तरह से सीख लेता है",
+      "बिना किसी गलती के कार्य करता है",
+      "पूरी तरह से स्वायत्त (Autonomous) हो जाता है"
+    ],
+    answer: "प्रशिक्षक की गतिविधियों की नकल करता है"
+  },
+  {
+    question: `"Repetition" चरण क्यों महत्वपूर्ण है?`,
+    options: [
+      "प्रशिक्षु को पूरी तरह से भूलने के लिए",
+      "प्रशिक्षु की गति और सटीकता को सुधारने के लिए",
+      "प्रशिक्षु को सीखने से रोकने के लिए",
+      "प्रशिक्षु को सैद्धांतिक ज्ञान देने के लिए"
+    ],
+    answer: "प्रशिक्षु की गति और सटीकता को सुधारने के लिए"
+  },
+   {
+    question: "डिमॉन्स्ट्रेशन क्या है?",
+    options: [
+      "एक योजनाबद्ध क्रिया जो शिक्षार्थियों को कौशल सिखाने के लिए की जाती है",
+      "एक अनियोजित प्रक्रिया",
+      "केवल सैद्धांतिक ज्ञान प्रदान करने की विधि",
+      "शिक्षकों के लिए अभ्यास सत्र"
+    ],
+    answer: "एक योजनाबद्ध क्रिया जो शिक्षार्थियों को कौशल सिखाने के लिए की जाती है"
+  },
+  {
+    question: "डिमॉन्स्ट्रेशन का मुख्य उद्देश्य क्या है?",
+    options: [
+      "शिक्षार्थियों को व्याख्यान देना",
+      "कौशल सिखाने की प्रक्रिया को चरणबद्ध और व्यवस्थित रूप से प्रस्तुत करना",
+      "केवल लिखित परीक्षा के लिए शिक्षण",
+      "कक्षा में अनुशासन बनाए रखना"
+    ],
+    answer: "कौशल सिखाने की प्रक्रिया को चरणबद्ध और व्यवस्थित रूप से प्रस्तुत करना"
+  },
+  {
+    question: "डिमॉन्स्ट्रेशन प्लान के कितने मुख्य चरण होते हैं?",
+    options: ["2", "3", "4", "5"],
+    answer: "4"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा डिमॉन्स्ट्रेशन प्लान का एक चरण नहीं है?",
+    options: [
+      "तैयारी (Preparation)",
+      "प्रस्तुतीकरण (Demonstration)",
+      "मूल्यांकन (Evaluation)",
+      "परीक्षण (Experimentation)"
+    ],
+    answer: "परीक्षण (Experimentation)"
+  },
+  {
+    question: "डिमॉन्स्ट्रेशन प्लान में 'तैयारी' चरण में क्या शामिल होता है?",
+    options: [
+      "कौशल का नाम और उद्देश्य निर्धारित करना",
+      "औजारों और आवश्यक सामग्री की सूची तैयार करना",
+      "शिक्षार्थियों को प्रेरित करना",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "डिमॉन्स्ट्रेशन के दौरान कौन-से उपकरणों का उपयोग किया जाना चाहिए?",
+    options: [
+      "कोई भी उपलब्ध उपकरण",
+      "केवल वे उपकरण जो बाद में शिक्षार्थियों द्वारा उपयोग किए जाएंगे",
+      "कोई उपकरण आवश्यक नहीं है",
+      "केवल महंगे उपकरण"
+    ],
+    answer: "केवल वे उपकरण जो बाद में शिक्षार्थियों द्वारा उपयोग किए जाएंगे"
+  },
+  {
+    question: "डिमॉन्स्ट्रेशन के दौरान सुरक्षा उपायों का पालन क्यों आवश्यक है?",
+    options: [
+      "केवल प्रशिक्षकों की सुरक्षा के लिए",
+      "दुर्घटनाओं को रोकने और प्रभावी शिक्षण सुनिश्चित करने के लिए",
+      "शिक्षार्थियों को डराने के लिए",
+      "क्योंकि यह केवल एक औपचारिकता है"
+    ],
+    answer: "दुर्घटनाओं को रोकने और प्रभावी शिक्षण सुनिश्चित करने के लिए"
+  },
+  {
+    question: "डिमॉन्स्ट्रेशन के बाद, प्रशिक्षक को क्या करना चाहिए?",
+    options: [
+      "शिक्षार्थियों को अभ्यास का अवसर देना",
+      "सुरक्षा नियमों को दोहराना",
+      "शिक्षार्थियों की गलतियों को सुधारना",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+  {
+    question: "शिक्षार्थियों की प्रगति का मूल्यांकन किस चरण में किया जाता है?",
+    options: [
+      "तैयारी (Preparation)",
+      "प्रस्तुतीकरण (Demonstration)",
+      "अभ्यास (Practice)",
+      "मूल्यांकन (Evaluation)"
+    ],
+    answer: "मूल्यांकन (Evaluation)"
+  },
+  {
+    question: '"शॉप टॉक" का मुख्य उद्देश्य क्या है?',
+    options: [
+      "व्याख्यान देना",
+      "सैद्धांतिक ज्ञान प्रदान करना",
+      "कौशल विकास के लिए व्यावहारिक जानकारी देना",
+      "शिक्षार्थियों को भ्रमित करना"
+    ],
+    answer: "कौशल विकास के लिए व्यावहारिक जानकारी देना"
+  },
+  {
+    question: "निम्नलिखित में से कौन-सा शॉप टॉक का प्रकार नहीं है?",
+    options: [
+      "प्रारंभिक शॉप टॉक (Introductory Shop Talk)",
+      "संबंधित शॉप टॉक (Related Shop Talk)",
+      "अंतिम शॉप टॉक (Final Shop Talk)",
+      "सैद्धांतिक शॉप टॉक (Theoretical Shop Talk)"
+    ],
+    answer: "सैद्धांतिक शॉप टॉक (Theoretical Shop Talk)"
+  },
+  {
+    question: "एक प्रभावी वक्ता बनने की कुंजी क्या है?",
+    options: [
+      "भाषणों को याद करना",
+      "जन्मजात प्रतिभा होना",
+      "निरंतर अभ्यास और सुधार",
+      "श्रोताओं से बचना"
+    ],
+    answer: "निरंतर अभ्यास और सुधार"
+  },
+   {
+    question: "प्रभावी प्रस्तुति देने के लिए निम्न में से कौन सा आवश्यक चरण नहीं है?",
+    options: [
+      "प्रस्तुति की योजना और आयोजन करना",
+      "सहायक प्रमाण इकट्ठा करना",
+      "एकरस (मोनोटोन्स) स्वर में बोलना",
+      "दृश्य सहायता (विजुअल एड्स) तैयार करना"
+    ],
+    answer: "एकरस (मोनोटोन्स) स्वर में बोलना"
+  },
+  {
+    question: "मौखिक प्रस्तुति में आवाज़ की उतार-चढ़ाव (वॉयस मॉड्यूलेशन) क्यों महत्वपूर्ण है?",
+    options: [
+      "यह प्रस्तुतकर्ता को अधिक बुद्धिमान बनाता है",
+      "यह श्रोताओं का ध्यान बनाए रखने में मदद करता है",
+      "यह वक्ता को कठिन प्रश्नों से बचने देता है",
+      "यह सुनिश्चित करता है कि केवल कुछ लोग ही सुन सकें"
+    ],
+    answer: "यह श्रोताओं का ध्यान बनाए रखने में मदद करता है"
+  },
+  {
+    question: "निम्नलिखित में से कौन सा उत्तेजना भिन्नता (स्टिमुलस वेरिएशन) का घटक नहीं है?",
+    options: [
+      "गतिविधियां (Movements)",
+      "हावभाव (Gestures)",
+      "प्रश्न पूछना (Questioning)",
+      "ध्यान केंद्रित करना (Focusing)"
+    ],
+    answer: "प्रश्न पूछना (Questioning)"
+  },
+  {
+    question: "अच्छे प्रश्न संरचना (Structuring of Questions) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "छात्रों को अपनी समझ को परखने में मदद करना",
+      "छात्रों को भ्रमित करना",
+      "केवल शिक्षक के ज्ञान को दर्शाना",
+      "छात्रों को निष्क्रिय बनाए रखना"
+    ],
+    answer: "छात्रों को अपनी समझ को परखने में मदद करना"
+  },
+  {
+    question: "शिक्षक द्वारा पूछे जाने वाले निम्नलिखित में से कौन से प्रश्न से बचना चाहिए?",
+    options: [
+      "हां या नहीं वाले प्रश्न (Yes/No Questions)",
+      "स्पष्टीकरण देने वाले प्रश्न (Explanatory Questions)",
+      "विश्लेषणात्मक प्रश्न (Analytical Questions)",
+      "उच्च स्तरीय तर्कसंगत प्रश्न (Higher Order Thinking Questions)"
+    ],
+    answer: "हां या नहीं वाले प्रश्न (Yes/No Questions)"
+  },
+  {
+    question: "ब्लैकबोर्ड के प्रभावी उपयोग के लिए कौन सा सुझाव सही नहीं है?",
+    options: [
+      "स्वच्छता और स्पष्टता बनाए रखना",
+      "प्रकाश व्यवस्था की जांच करना",
+      "ब्लैकबोर्ड को पूरी तरह से लिखकर भर देना",
+      "सुचारू और सुव्यवस्थित ढंग से लिखना"
+    ],
+    answer: "ब्लैकबोर्ड को पूरी तरह से लिखकर भर देना"
+  },
+  {
+    question: "शिक्षण प्रक्रिया में सही ढंग से प्रतिक्रिया (Feedback) देने का क्या लाभ है?",
+    options: [
+      "यह छात्रों को सीखने के लिए प्रेरित करता है",
+      "यह छात्रों को हतोत्साहित करता है",
+      "यह शिक्षकों को कम मेहनत करने देता है",
+      "यह केवल उज्ज्वल (ब्रिलियंट) छात्रों के लिए उपयोगी होता है"
+    ],
+    answer: "यह छात्रों को सीखने के लिए प्रेरित करता है"
+  },
+  {
+    question: "प्रभावी स्पष्टीकरण (Explanation) देने के लिए एक शिक्षक को क्या करना चाहिए?",
+    options: [
+      "विषय से संबंधित उदाहरण देना",
+      "तकनीकी शब्दों को बिना समझाए छोड़ देना",
+      "अत्यधिक कठिन भाषा का उपयोग करना",
+      "छात्रों से किसी भी प्रतिक्रिया की उम्मीद न करना"
+    ],
+    answer: "विषय से संबंधित उदाहरण देना"
+  },
+  {
+    question: "शिक्षण में 'सेट इंडक्शन' (Set Induction) का मुख्य उद्देश्य क्या है?",
+    options: [
+      "विद्यार्थियों को नए पाठ की ओर आकर्षित करना",
+      "विद्यार्थियों को स्वतंत्र रूप से सीखने देना",
+      "शिक्षकों को जल्दी से पाठ समाप्त करने में मदद करना",
+      "कक्षा में अनुशासन बनाए रखना"
+    ],
+    answer: "विद्यार्थियों को नए पाठ की ओर आकर्षित करना"
+  },
+  {
+    question: '"अनुभव शंकु" की अवधारणा किसने विकसित की थी?',
+    options: [
+      "बेंजामिन ब्लूम",
+      "एडगर डेल",
+      "जॉन ड्यूई",
+      "जीन पियाजे"
+    ],
+    answer: "एडगर डेल"
+  },
+  {
+    question: "अनुभव शंकु का मुख्य उद्देश्य क्या है?",
+    options: [
+      "शिक्षण विधियों को वर्गीकृत करना",
+      "केवल पढ़ने की तकनीक को बढ़ावा देना",
+      "छात्रों को व्याख्यान आधारित शिक्षा देना",
+      "केवल व्यावहारिक शिक्षा पर ध्यान केंद्रित करना"
+    ],
+    answer: "शिक्षण विधियों को वर्गीकृत करना"
+  },
+  {
+    question: "अनुभव शंकु में कौन सा स्तर सबसे प्रभावी शिक्षण अनुभव प्रदान करता है?",
+    options: [
+      "व्याख्यान (Lecture)",
+      "दृश्य प्रतीक (Visual Symbols)",
+      "प्रत्यक्ष अनुभव (Direct Experience)",
+      "फिल्में और टेलीविजन (Films & Television)"
+    ],
+    answer: "प्रत्यक्ष अनुभव (Direct Experience)"
+  },
+  {
+    question: "एडगर डेल के अनुसार, कौन सा अनुभव सबसे अमूर्त (Abstract) है?",
+    options: [
+      "मौखिक प्रतीक (Verbal Symbols)",
+      "प्रत्यक्ष अनुभव (Direct Experiences)",
+      "नाटकीय प्रदर्शन (Dramatic Participation)",
+      "चित्र और आरेख (Pictures & Diagrams)"
+    ],
+    answer: "मौखिक प्रतीक (Verbal Symbols)"
+  },
+  {
+    question: "एडगर डेल के अनुसार, सीखने के लिए सबसे प्रभावी तरीका कौन सा है?",
+    options: [
+      "पढ़ना और सुनना",
+      "केवल व्याख्यान सुनना",
+      "अनुभवों में सक्रिय रूप से भाग लेना",
+      "केवल किताबों का अध्ययन करना"
+    ],
+    answer: "अनुभवों में सक्रिय रूप से भाग लेना"
+  },
+  {
+    question: '"अनुभव शंकु" किस सिद्धांत से संबंधित है?',
+    options: [
+      "संज्ञानात्मक विकास सिद्धांत",
+      "शिक्षण और संचार सिद्धांत",
+      "सामाजिक अधिगम सिद्धांत",
+      "नैतिक विकास सिद्धांत"
+    ],
+    answer: "शिक्षण और संचार सिद्धांत"
+  },
+    {
+    question: "अनुभव शंकु में सबसे निचले स्तर पर क्या आता है?",
+    options: [
+      "मौखिक प्रतीक (Verbal Symbols)",
+      "अनुभव पर आधारित क्रियाएं (Direct Purposeful Experiences)",
+      "चित्र और आरेख (Pictures & Diagrams)",
+      "प्रदर्शन (Demonstrations)"
+    ],
+    answer: "अनुभव पर आधारित क्रियाएं (Direct Purposeful Experiences)"
+  },
+  {
+    question: "डेल के अनुभव शंकु में कौन सा स्तर ‘व्यावहारिक शिक्षा’ को दर्शाता है?",
+    options: [
+      "मौखिक वर्णन (Verbal Explanation)",
+      "स्वयं करके सीखना (Learning by Doing)",
+      "टेलीविजन देखना (Watching TV)",
+      "कहानी सुनना (Listening to Stories)"
+    ],
+    answer: "स्वयं करके सीखना (Learning by Doing)"
+  },
+  {
+    question: "अनुभव शंकु में टेलीविजन और चलचित्र किस श्रेणी में आते हैं?",
+    options: [
+      "अनुभवात्मक गतिविधियाँ (Experiential Activities)",
+      "दृश्य-श्रव्य अनुभव (Audio-Visual Experiences)",
+      "अमूर्त शिक्षण (Abstract Learning)",
+      "केवल श्रव्य अनुभव (Only Auditory Experiences)"
+    ],
+    answer: "दृश्य-श्रव्य अनुभव (Audio-Visual Experiences)"
+  },
+  {
+    question: "डेल के अनुभव शंकु के अनुसार, पढ़ने से सीखने की तुलना में देखने और करने से सीखना अधिक प्रभावी क्यों है?",
+    options: [
+      "क्योंकि यह छात्र को व्यस्त रखता है",
+      "क्योंकि यह अधिक जानकारी प्रदान करता है",
+      "क्योंकि यह सक्रिय भागीदारी को बढ़ावा देता है",
+      "क्योंकि यह परीक्षा के लिए बेहतर होता है"
+    ],
+    answer: "क्योंकि यह सक्रिय भागीदारी को बढ़ावा देता है"
+  },
+  {
+    question: "माइक्रो-टीचिंग का मुख्य उद्देश्य क्या है?",
+    options: [
+      "शिक्षकों को परीक्षा की तैयारी कराना",
+      "शिक्षकों को छोटे समूह में शिक्षण कौशल विकसित करने में मदद करना",
+      "शिक्षकों को कक्षा अनुशासन सिखाना",
+      "शिक्षकों को केवल सिद्धांत पढ़ाना"
+    ],
+    answer: "शिक्षकों को छोटे समूह में शिक्षण कौशल विकसित करने में मदद करना"
+  },
+  {
+    question: "माइक्रो-टीचिंग की अवधारणा सबसे पहले किसने प्रस्तुत की थी?",
+    options: [
+      "बेंजामिन ब्लूम",
+      "जॉन डेवी",
+      "डॉ. ड्वाइट एलन",
+      "पावलोव"
+    ],
+    answer: "डॉ. ड्वाइट एलन"
+  },
+  {
+    question: "माइक्रो-टीचिंग में शिक्षण का समय सामान्यतः कितना होता है?",
+    options: [
+      "5 से 10 मिनट",
+      "15 से 20 मिनट",
+      "30 से 40 मिनट",
+      "1 घंटा"
+    ],
+    answer: "15 से 20 मिनट"
+  },
+  {
+    question: "माइक्रो-टीचिंग में आमतौर पर कितने विद्यार्थियों को पढ़ाया जाता है?",
+    options: [
+      "10 - 15",
+      "30 - 40",
+      "50 - 60",
+      "100 से अधिक"
+    ],
+    answer: "10 - 15"
+  },
+  {
+    question: "माइक्रो-टीचिंग के कितने प्रमुख घटक (Components) होते हैं?",
+    options: [
+      "3",
+      "5",
+      "6",
+      "8"
+    ],
+    answer: "6"
+  },
+  {
+    question: "माइक्रो-टीचिंग के कौन से घटक में शिक्षण कौशल को व्यावहारिक रूप से लागू किया जाता है?",
+    options: [
+      "प्रस्तुतीकरण (Presentation of Theory)",
+      "मॉडलिंग (Modeling)",
+      "निष्पादन (Performance)",
+      "फीडबैक (Feedback)"
+    ],
+    answer: "निष्पादन (Performance)"
+  },
+  {
+    question: "माइक्रो-टीचिंग में फीडबैक का क्या उद्देश्य होता है?",
+    options: [
+      "शिक्षकों की आलोचना करना",
+      "शिक्षकों की गलतियाँ गिनाना",
+      "शिक्षण कौशल को सुधारना",
+      "शिक्षकों को परीक्षा में पास कराना"
+    ],
+    answer: "शिक्षण कौशल को सुधारना"
+  },
+  {
+    question: "माइक्रो-टीचिंग के दौरान कौन-से तरीके से फीडबैक दिया जा सकता है?",
+    options: [
+      "वीडियो-रिकॉर्डिंग",
+      "रेटिंग सिस्टम",
+      "सहपाठियों और पर्यवेक्षकों द्वारा",
+      "उपरोक्त सभी"
+    ],
+    answer: "उपरोक्त सभी"
+  },
+   {
+    question: "माइक्रो-टीचिंग का सबसे महत्वपूर्ण लाभ क्या है?",
+    options: [
+      "यह शिक्षकों को तनाव देता है",
+      "यह शिक्षण कौशल सुधारने में मदद करता है",
+      "यह कक्षा अनुशासन सिखाने में मदद करता है",
+      "यह केवल सैद्धांतिक ज्ञान प्रदान करता है"
+    ],
+    answer: "यह शिक्षण कौशल सुधारने में मदद करता है"
+  }
+  ];
+
+let currentQuestion = 0;
+let selectedAnswers = new Array(quizData.length).fill(null);
+let skippedQuestions = new Array(quizData.length).fill(false);
+let totalTime = 50 * 60; // 50 minutes in seconds
+let timerInterval;
+
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(() => {
+    totalTime--;
+    updateTimer();
+    if (totalTime <= 0) {
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = totalTime % 60;
+  document.getElementById("timer").innerText = `Time Remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
+function loadQuestion() {
+  if(quizData.length === 0) {
+    document.getElementById('question').innerText = "No questions available.";
+    document.getElementById('options').innerHTML = "";
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    updateQuestionTracker();
+    return;
+  }
+  const q = quizData[currentQuestion];
+  document.getElementById('question').innerText = `${currentQuestion + 1}. ${q.question}`;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.classList.add("option-btn");
+    btn.innerText = option;
+    btn.setAttribute("role", "listitem");
+    btn.onclick = () => selectOption(option);
+    if(selectedAnswers[currentQuestion] === option) {
+      btn.classList.add("selected");
+    }
+    btn.disabled = (totalTime <= 0);
+    optionsDiv.appendChild(btn);
+  });
+
+  document.getElementById('prevBtn').disabled = currentQuestion === 0 || totalTime <= 0;
+  document.getElementById('nextBtn').disabled = currentQuestion === quizData.length -1 || totalTime <= 0;
+  document.getElementById('skipBtn').disabled = totalTime <= 0;
+  document.getElementById('submitBtn').style.display = currentQuestion === quizData.length - 1 ? "inline-block" : "none";
+
+  updateQuestionTracker();
+}
+
+function selectOption(option) {
+  if(totalTime <= 0) return; // no selection after time ends
+  selectedAnswers[currentQuestion] = option;
+  skippedQuestions[currentQuestion] = false; // Mark as answered, no longer skipped
+  updateQuestionTracker();
+  loadQuestion(); // refresh to highlight selected option
+}
+
+function nextQuestion() {
+  if (currentQuestion < quizData.length - 1) {
+    currentQuestion++;
+    loadQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    loadQuestion();
+  }
+}
+
+function skipQuestion() {
+  if(totalTime <= 0) return;
+  skippedQuestions[currentQuestion] = true;
+  selectedAnswers[currentQuestion] = null;
+  updateQuestionTracker();
+  nextQuestion();
+}
+
+function updateQuestionTracker() {
+  const tracker = document.getElementById("questionTracker");
+  tracker.innerHTML = "";
+  quizData.forEach((_, index) => {
+    const indicator = document.createElement("div");
+    indicator.classList.add("question-indicator");
+    if(selectedAnswers[index] !== null) {
+      indicator.classList.add("answered");
+    } else if(skippedQuestions[index]) {
+      indicator.classList.add("skipped");
+    }
+    if(index === currentQuestion) {
+      indicator.classList.add("active");
+    }
+    indicator.innerText = index + 1;
+    indicator.setAttribute("aria-label", `Question ${index + 1} ${index === currentQuestion ? '(current)' : ''} ${selectedAnswers[index] !== null ? 'answered' : skippedQuestions[index] ? 'skipped' : 'not answered'}`);
+    indicator.onclick = () => {
+      if(totalTime <= 0) return;
+      currentQuestion = index;
+      loadQuestion();
+    };
+    tracker.appendChild(indicator);
+  });
+}
+
+function endQuiz() {
+  clearInterval(timerInterval);
+  // Disable buttons and options
+  document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+  document.getElementById("skipBtn").disabled = true;
+  document.getElementById("submitBtn").disabled = true;
+
+  let correctCount = 0;
+  let incorrectQuestions = [];
+
+  quizData.forEach((q, i) => {
+    if (selectedAnswers[i] === q.answer) {
+      correctCount++;
+    } else {
+      incorrectQuestions.push({
+        question: q.question,
+        yourAnswer: selectedAnswers[i] || "(No answer)",
+        correctAnswer: q.answer
+      });
+    }
+  });
+
+  // Save results to sessionStorage
+  sessionStorage.setItem('quizScore', correctCount);
+  sessionStorage.setItem('quizTotal', quizData.length);
+  sessionStorage.setItem('quizIncorrect', JSON.stringify(incorrectQuestions));
+
+  // Redirect to results page
+  window.location.href = "results.html";
+}
+
+
+// Event Listener for Skip Button
+document.getElementById("skipBtn").addEventListener("click", skipQuestion);
+
+// Start quiz
+loadQuestion();
+startTimer();
+
+</script>
+</body>
+</html>
